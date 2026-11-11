@@ -2,7 +2,7 @@
 
 > **3D Stress-Relief Arcade Fighter** powered by TypeScript, Three.js, GSAP, and Web Audio.
 
-Immoral Combat is a Tekken-inspired 1v1 browser fighting game featuring a full-3D Fighter Select stage, Best-of-3 round progression, multi-tier CPU AI, custom GLB character & arena pipelines, cinematic signature finishers, aggression-driven blood effects, and an environment-key-protected secret boss character.
+Immoral Combat is a Tekken-inspired 1v1 browser fighting game featuring a full-3D Fighter Select stage, Best-of-3 round progression, multi-tier CPU AI, custom GLB character & arena pipelines, cinematic signature finishers, aggression-driven blood effects, and a secret boss character.
 
 ---
 
