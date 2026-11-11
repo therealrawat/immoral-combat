@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Immoral Combat — 3D Stress-Relief Fighter</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥊</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bangers&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Fredoka:wght@500;600;700&family=Teko:wght@700&display=swap"
+    rel="stylesheet" />
+</head>
+
+<body>
+  <div id="app">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Clean Arcade HUD Overlay -->
+    <div id="ui-overlay" class="ui-overlay ui-overlay--select-open">
+      <div class="damage-vignette" id="damage-vignette" aria-hidden="true"></div>
+      <!-- Top Bar: Health Bars + Character Switcher -->
+      <header class="hud-top">
+        <!-- Left Fighter Health -->
+        <div class="fighter-hud fighter-hud--left" id="hud-left">
+          <div class="fighter-avatar fighter-avatar--chinu" id="hud-left-avatar">
+            <img class="avatar-img" id="hud-left-avatar-img" alt="Left Fighter" />
+          </div>
+          <div class="fighter-info">
+            <div class="fighter-name-row">
+              <span class="fighter-name" id="hud-left-name">PLAYER 1</span>
+              <span class="fighter-tag fighter-tag--boss" id="hud-left-tag">REAL BOSS</span>
+              <span class="active-badge" id="badge-active-left">PLAYER</span>
+            </div>
+            <div class="health-bar-track health-bar-track--left health-bar-track--infinite" id="hud-left-track">
+              <div class="health-bar-trail" id="hud-left-trail" style="width: 100%"></div>
+              <div class="health-bar-fill health-bar-fill--infinite" id="hud-left-fill" style="width: 100%"></div>
+              <span class="health-value health-value--infinite" id="hud-left-health-text">
+                ∞ / ∞ UNBREAKABLE
+              </span>
+            </div>
+            <div class="round-pips round-pips--left" id="hud-left-rounds" aria-label="Player 1 Round Wins">
+              <span class="round-pip" id="p1-round-1"></span>
+              <span class="round-pip" id="p1-round-2"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center Match Timer -->
+        <div class="hud-center">
+          <div class="hud-timer-frame" aria-label="Round Timer">
+            <span class="hud-timer" id="hud-timer">99</span>
+          </div>
+        </div>
+
+        <!-- Right Fighter Health -->
+        <div class="fighter-hud fighter-hud--right" id="hud-right">
+          <div class="fighter-info">
+            <div class="fighter-name-row fighter-name-row--right">
+              <span class="active-badge hidden" id="badge-active-right">PLAYER</span>
+              <span class="fighter-tag fighter-tag--target" id="hud-right-tag">TARGET</span>
+              <span class="fighter-name" id="hud-right-name">OPPONENT</span>
+            </div>
+            <div class="health-bar-track health-bar-track--right" id="hud-right-track">
+              <div class="health-bar-trail" id="hud-right-trail" style="width: 100%"></div>
+              <div class="health-bar-fill health-bar-fill--priyanshu" id="hud-right-fill" style="width: 100%"></div>
+              <span class="health-value" id="hud-right-health-text">100 / 100 HP</span>
+            </div>
+            <div class="round-pips round-pips--right" id="hud-right-rounds" aria-label="Player 2 Round Wins">
+              <span class="round-pip" id="p2-round-1"></span>
+              <span class="round-pip" id="p2-round-2"></span>
+            </div>
+          </div>
+          <div class="fighter-avatar fighter-avatar--priyanshu" id="hud-right-avatar">
+            <img class="avatar-img" id="hud-right-avatar-img" alt="Right Fighter" />
+          </div>
+        </div>
+      </header>
+
+      <!-- Transient Hit Quip Bubble -->
+      <div class="top-feedback-stack">
+        <div class="quip-bubble hidden" id="quip-bubble"></div>
+      </div>
+
+      <!-- Massive Comical Boss Toast (Action 2) -->
+      <div class="boss-toast-backdrop hidden" id="boss-toast-backdrop" aria-live="assertive">
+        <div class="boss-toast" id="boss-toast">
+          <div class="boss-toast-badge">INSTANT KICK OVERRIDE!</div>
+          <div class="boss-toast-text">You can't mess with the real boss.</div>
+        </div>
+      </div>
+
+      <!-- KO / Refill Notification Pill -->
+      <div class="ko-banner hidden" id="ko-banner">
+        <span class="ko-title" id="ko-title">PRIYANSHU K.O.'D!</span>
+        <span class="ko-sub" id="ko-sub">Healing fighter back to 100 HP...</span>
+      </div>
+
+      <!-- Tekken Center Match State Announcement ("ROUND 1", "FIGHT!", "K.O.", "TIME OVER", "PLAYER 1 WINS") -->
+      <div class="match-announcement hidden" id="match-announcement" aria-live="assertive">
+        <div class="match-announcement-title" id="match-announcement-title">ROUND 1</div>
+        <div class="match-announcement-sub" id="match-announcement-sub">PREPARE FOR BATTLE</div>
+        <button type="button" class="match-rematch-btn hidden" id="btn-match-rematch">
+          REMATCH (R)
+        </button>
+      </div>
+
+      <!-- Tekken-Style Fullscreen Fighter Select Screen -->
+      <div class="char-modal-backdrop select-screen" id="char-modal-backdrop" role="dialog" aria-modal="true"
+        aria-labelledby="select-prompt-text">
+        <!-- Clickable 3D Stage Side Zones (Upper Showcase Area) -->
+        <div class="select-stage-hit-area">
+          <button type="button" class="select-stage-side select-stage-side--p1" id="select-stage-p1"
+            aria-label="Edit Player 1 Fighter">
+            <span class="select-stage-hint">CLICK TO EDIT P1</span>
+          </button>
+          <button type="button" class="select-stage-side select-stage-side--cpu" id="select-stage-cpu"
+            aria-label="Edit Opponent Fighter">
+            <span class="select-stage-hint">CLICK TO EDIT OPPONENT</span>
+          </button>
+        </div>
+
+        <!-- Sweeping Red (P1) & Blue (Opponent) Nameplate Ribbons -->
+        <div class="select-nameplate-row">
+          <div class="select-ribbon select-ribbon--p1">
+            <div class="select-ribbon-content">
+              <span class="select-epithet" id="select-p1-epithet">Unstoppable Real Boss</span>
+              <h2 class="select-fighter-name" id="select-p1-name">PLAYER 1</h2>
+            </div>
+            <div class="select-stance-pills" role="group" aria-label="Player 1 Idle Pose">
+              <button type="button" class="stance-pill stance-pill--active" id="select-p1-idle-1">
+                IDLE 1
+              </button>
+              <button type="button" class="stance-pill" id="select-p1-idle-2">IDLE 2</button>
+            </div>
+          </div>
+
+          <div class="select-ribbon select-ribbon--cpu">
+            <div class="select-stance-pills" role="group" aria-label="Opponent Idle Pose">
+              <button type="button" class="stance-pill stance-pill--active" id="select-cpu-idle-1">
+                IDLE 1
+              </button>
+              <button type="button" class="stance-pill" id="select-cpu-idle-2">IDLE 2</button>
+            </div>
+            <div class="select-ribbon-content">
+              <span class="select-epithet" id="select-cpu-epithet">Spirited Challenger</span>
+              <h2 class="select-fighter-name" id="select-cpu-name">OPPONENT</h2>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sub-Header Profile Plates & Mode Banner -->
+        <div class="select-subheader">
+          <button type="button" class="select-slot-plate select-slot-plate--p1 select-slot-plate--active"
+            id="select-tab-p1">
+            <span class="select-slot-kicker">PLAYER 1</span>
+            <span class="select-slot-meta" id="select-p1-meta">REAL BOSS • ∞ HP</span>
+          </button>
+
+          <div class="select-center-banner">
+            <span class="select-mode-sub">1v1 Arena Match Setup</span>
+            <div class="select-prompt" id="select-prompt-text">CHOOSE YOUR FIGHTER</div>
+
+            <div class="select-setup-strip" aria-label="Match Settings">
+              <div class="select-setup-group">
+                <span class="select-setup-kicker">DIFFICULTY</span>
+                <div class="select-setup-pills" id="select-difficulty-pills" role="group" aria-label="Difficulty Level">
+                  <button type="button" class="select-setup-pill" data-difficulty="easy">EASY</button>
+                  <button type="button" class="select-setup-pill select-setup-pill--active"
+                    data-difficulty="medium">MEDIUM</button>
+                  <button type="button" class="select-setup-pill" data-difficulty="hard">HARD</button>
+                </div>
+              </div>
+              <div class="select-setup-group">
+                <span class="select-setup-kicker">STAGE</span>
+                <div class="select-setup-pills" id="select-stage-pills" role="group" aria-label="Arena Stage"></div>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="select-slot-plate select-slot-plate--cpu" id="select-tab-cpu">
+            <span class="select-slot-kicker">OPPONENT</span>
+            <span class="select-slot-meta" id="select-cpu-meta">CPU • 100 HP</span>
+          </button>
+        </div>
+
+        <!-- Bottom Dark Smoky Roster Dock -->
+        <div class="select-roster-dock">
+          <div class="select-roster-grid" id="select-roster-grid" role="listbox" aria-label="Fighters"></div>
+        </div>
+
+        <!-- Bottom Tekken-Style Control Prompt Bar -->
+        <footer class="select-footer-bar">
+          <span class="select-ctrl-item">
+            <span class="ctrl-badge ctrl-badge--dpad">✛</span>
+            <span>NAVIGATE</span>
+            <kbd>←/→</kbd>
+          </span>
+
+          <button type="button" class="select-ctrl-btn" id="select-ctrl-confirm">
+            <span class="ctrl-badge ctrl-badge--x">✕</span>
+            <span>CONFIRM</span>
+            <kbd>ENTER</kbd>
+          </button>
+
+          <button type="button" class="select-ctrl-btn" id="select-ctrl-stance">
+            <span class="ctrl-badge ctrl-badge--sq">□</span>
+            <span id="select-stance-label">STANCE: IDLE 1</span>
+            <kbd>Q</kbd>
+          </button>
+
+          <button type="button" class="select-ctrl-btn" id="select-ctrl-back">
+            <span class="ctrl-badge ctrl-badge--o">○</span>
+            <span>BACK</span>
+            <kbd>ESC</kbd>
+          </button>
+
+          <button type="button" class="select-ctrl-btn" id="select-ctrl-stage">
+            <span id="select-stage-label">STAGE: CYBER ARENA</span>
+            <kbd>T</kbd>
+          </button>
+
+          <button type="button" class="select-ctrl-btn" id="select-ctrl-guide">
+            <span>? CONTROLS</span>
+            <kbd>H</kbd>
+          </button>
+
+          <button type="button" class="select-ctrl-btn select-ctrl-btn--fight" id="select-ctrl-fight">
+            <span class="ctrl-badge ctrl-badge--tri">△</span>
+            <span>FIGHT NOW</span>
+            <kbd>F</kbd>
+          </button>
+        </footer>
+      </div>
+
+      <!-- Minimal Bottom Utility Controls -->
+      <footer class="hud-bottom">
+        <div class="utility-buttons">
+          <button type="button" class="util-btn" id="btn-sound-toggle">🔊 SFX ON</button>
+          <button type="button" class="util-btn" id="btn-open-select">Choose Fighter</button>
+          <button type="button" class="util-btn" id="btn-heal-fighters" title="Heal / Restore Fighters (U)">💕 Heal
+            (U)</button>
+          <button type="button" class="util-btn" id="btn-controls-guide">? Controls (H)</button>
+        </div>
+      </footer>
+
+      <!-- Sacred Character Key Unlock Dialog (Chinu) -->
+      <div class="sacred-unlock-backdrop hidden" id="sacred-unlock-backdrop" role="dialog" aria-modal="true"
+        aria-labelledby="sacred-unlock-title">
+        <form class="sacred-unlock-card" id="sacred-unlock-form" autocomplete="off">
+          <div class="sacred-unlock-crest" aria-hidden="true">👑</div>
+          <span class="sacred-unlock-kicker">SACRED CHARACTER SEAL</span>
+          <h2 class="sacred-unlock-title" id="sacred-unlock-title">UNLOCK CHINU</h2>
+          <p class="sacred-unlock-desc">Chinu is sacred. Enter the secret key to select her.</p>
+          <div class="sacred-unlock-input-row">
+            <input type="password" class="sacred-unlock-input" id="sacred-unlock-input"
+              placeholder="Enter sacred key..." aria-label="Sacred Chinu key" autocomplete="off" spellcheck="false" />
+            <button type="button" class="sacred-unlock-toggle" id="sacred-unlock-toggle"
+              aria-label="Show or hide sacred key">SHOW</button>
+          </div>
+          <div class="sacred-unlock-error hidden" id="sacred-unlock-error" role="alert">Invalid sacred key. Try again.
+          </div>
+          <div class="sacred-unlock-actions">
+            <button type="button" class="sacred-unlock-btn sacred-unlock-btn--cancel" id="sacred-unlock-cancel">CANCEL
+              (ESC)</button>
+            <button type="submit" class="sacred-unlock-btn sacred-unlock-btn--confirm"
+              id="sacred-unlock-submit">UNLOCK</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- New-Player Controls Guide Overlay (Toggled with H / ? Controls) -->
+      <div class="controls-guide-backdrop hidden" id="controls-guide-backdrop" role="dialog" aria-modal="true"
+        aria-labelledby="controls-guide-title">
+        <div class="controls-guide-card" id="controls-guide-card">
+          <div class="controls-guide-header">
+            <div>
+              <span class="controls-guide-kicker">FIGHTER FIELD MANUAL</span>
+              <h2 class="controls-guide-title" id="controls-guide-title">CONTROLS &amp; COMBAT GUIDE</h2>
+            </div>
+            <button type="button" class="controls-guide-close" id="btn-close-controls-guide"
+              aria-label="Close Controls Guide">✕ ESC</button>
+          </div>
+
+          <div class="controls-guide-grid">
+            <section class="controls-guide-section">
+              <h3 class="controls-guide-section-title">MOVEMENT &amp; STRIKES</h3>
+              <ul class="controls-guide-list">
+                <li><kbd>W A S D</kbd> / <kbd>← ↑ ↓ →</kbd><span>Move &amp; sidestep in arena</span></li>
+                <li><kbd>SPACE</kbd> / <kbd>Click Fighter</kbd><span>Quick Punch</span></li>
+                <li><kbd>K</kbd><span>Heavy Drop Kick</span></li>
+                <li><kbd>C</kbd><span>Counter / Clash Strike</span></li>
+                <li><kbd>M</kbd><span>Muay Thai 3-Hit Combo</span></li>
+                <li><kbd>U</kbd> / <kbd>💕 Heal</kbd><span>Heal Fighters (Kiss Heal / Full HP Restore)</span></li>
+              </ul>
+            </section>
+
+            <section class="controls-guide-section">
+              <h3 class="controls-guide-section-title">SIGNATURE MOVES &amp; EMOTES</h3>
+              <ul class="controls-guide-list">
+                <li><kbd>F</kbd><span>Primary Signature (at 100% meter)</span></li>
+                <li><kbd>G</kbd><span>Secondary Signature (Modiji Chai Break +20% Heal, Wall, Matryoshka)</span></li>
+                <li><kbd>P</kbd> / <kbd>L</kbd> / <kbd>V</kbd> / <kbd>E</kbd><span>Taunt, Flex, Champ Pose, Arena
+                    Entry</span></li>
+                <li><kbd>T</kbd><span>Cycle Stage (on Fighter Select)</span></li>
+                <li><kbd>H</kbd> / <kbd>F1</kbd><span>Open / Close this Controls Guide</span></li>
+              </ul>
+            </section>
+          </div>
+
+          <div class="controls-guide-tip">
+            <strong>Pro Tip:</strong> Landing blows and taking hits fills your corner <strong>Signature Meter</strong>
+            to 100%. Once glowing gold, press <kbd>F</kbd> or <kbd>G</kbd> for a cinematic finisher — and stay sharp,
+            because CPU rivals unleash theirs too!
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom-Left & Bottom-Right Rage / Signature Meters -->
+      <div class="signature-meter-box signature-meter-box--left" id="hud-p1-signature-box">
+        <div class="signature-meter-header">
+          <span class="signature-meter-title" id="hud-p1-signature-label">P1 SIGNATURE</span>
+          <span class="signature-meter-percent" id="hud-p1-signature-percent">0%</span>
+        </div>
+        <div class="signature-meter-track">
+          <div class="signature-meter-fill" id="hud-p1-signature-fill" style="width: 0%"></div>
+        </div>
+        <div class="signature-meter-prompt hidden" id="hud-p1-signature-prompt">
+          Press F for Signature Move
+        </div>
+      </div>
+
+      <div class="signature-meter-box signature-meter-box--right" id="hud-p2-signature-box">
+        <div class="signature-meter-header">
+          <span class="signature-meter-percent" id="hud-p2-signature-percent">0%</span>
+          <span class="signature-meter-title" id="hud-p2-signature-label">P2 SIGNATURE</span>
+        </div>
+        <div class="signature-meter-track signature-meter-track--right">
+          <div class="signature-meter-fill" id="hud-p2-signature-fill" style="width: 0%"></div>
+        </div>
+        <div class="signature-meter-prompt hidden" id="hud-p2-signature-prompt">
+          Press F for Signature Move
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
