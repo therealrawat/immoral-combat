@@ -469,8 +469,8 @@ export class GameController {
     const leftName = FIGHTER_META[this.selectedCharacter].displayName;
     const rightName = FIGHTER_META[this.opponentCharacter].displayName;
     this.ui.setInitialLoaderProgress(
-      14,
-      `Setting up UI & showcase for ${leftName} vs ${rightName}...`
+      10,
+      `Preparing UI & initial arena setup (${leftName} vs ${rightName})...`
     );
 
     const fontDoc =
@@ -488,34 +488,52 @@ export class GameController {
     }
     if (this.disposed) return;
 
-    this.ui.setInitialLoaderProgress(
-      34,
-      `Loading ${leftName} & ${rightName} showcase 3D models...`
+    const totalRoster = CHARACTER_IDS.length;
+    const extraAvatarIds = CHARACTER_IDS.filter(
+      (id) => id !== this.selectedCharacter && id !== this.opponentCharacter
     );
-
-    let doneCount = 0;
-    const bumpShowcase = (loadedName: string) => {
-      if (this.disposed) return;
-      doneCount += 1;
-      const pct = doneCount >= 2 ? 96 : 66;
-      const msg =
-        doneCount >= 2
-          ? 'Showcase ready — extra fighters & stages load on demand'
-          : `${loadedName} showcase ready — finishing setup...`;
-      this.ui.setInitialLoaderProgress(pct, msg);
+    const completedIds = new Set<CharacterId>();
+    const bumpRosterProgress = (id: CharacterId) => {
+      if (this.disposed || completedIds.has(id)) return;
+      completedIds.add(id);
+      const count = completedIds.size;
+      const pct = Math.round(22 + (count / totalRoster) * 70);
+      this.ui.setInitialLoaderProgress(
+        pct,
+        `Preloading fighter avatars (${count}/${totalRoster}) — ${FIGHTER_META[id].displayName}...`
+      );
     };
 
-    await Promise.all([
+    this.ui.setInitialLoaderProgress(
+      22,
+      `Preloading roster avatars (0/${totalRoster}) & showcase models...`
+    );
+
+    const [, , extraPortraits] = await Promise.all([
       this.selectStage
         .setFighter('p1', this.selectedCharacter, 'idle-1', false)
-        .finally(() => bumpShowcase(leftName)),
+        .finally(() => bumpRosterProgress(this.selectedCharacter)),
       this.selectStage
         .setFighter('cpu', this.opponentCharacter, 'idle-1', false)
-        .finally(() => bumpShowcase(rightName)),
+        .finally(() => bumpRosterProgress(this.opponentCharacter)),
+      this.selectStage.generateFighterPortraits(extraAvatarIds, {
+        includeIdlePose: false,
+        onProgress: (id, url) => {
+          if (url && !this.disposed) {
+            this.ui.setFighterPortraits({ [id]: url });
+          }
+          bumpRosterProgress(id);
+        },
+      }),
     ]);
 
     if (this.disposed) return;
-    this.ui.setInitialLoaderProgress(100, 'Arena Showcase Ready!');
+    this.ui.setFighterPortraits(extraPortraits);
+    this.ui.setInitialLoaderProgress(95, 'Finalizing fighter avatar thumbnails...');
+    await this.ui.waitForRosterPortraitsReady(350);
+
+    if (this.disposed) return;
+    this.ui.setInitialLoaderProgress(100, 'Fighter avatars & showcase ready!');
     this.ui.hideInitialLoader();
   }
 
@@ -797,13 +815,13 @@ export class GameController {
     const rawDelta = Math.min((now - this.lastTimestamp) / 1000, 0.05);
     this.lastTimestamp = now;
 
-    if (this.ui.isModalOpen()) {
-      this.selectStage.update(rawDelta);
-      this.sceneManager.renderCustomScene(this.selectStage.scene, this.selectStage.camera);
+    if (this.ui.isInitialLoaderOpen() || this.ui.isMatchLoaderOpen()) {
       return;
     }
 
-    if (this.ui.isInitialLoaderOpen() || this.ui.isMatchLoaderOpen()) {
+    if (this.ui.isModalOpen()) {
+      this.selectStage.update(rawDelta);
+      this.sceneManager.renderCustomScene(this.selectStage.scene, this.selectStage.camera);
       return;
     }
 

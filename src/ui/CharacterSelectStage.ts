@@ -706,6 +706,7 @@ export class CharacterSelectStage {
     }
     if (slot.mixer) {
       slot.mixer.stopAllAction();
+      slot.mixer.uncacheRoot(slot.mixer.getRoot());
       slot.mixer = null;
     }
     slot.container.clear();
@@ -878,29 +879,56 @@ export class CharacterSelectStage {
   }
 
   /**
-   * Renders crisp 3D bust portrait thumbnails of fighters (on-demand utility).
+   * Renders crisp 3D bust portrait thumbnails for the requested roster fighters.
+   * When `includeIdlePose` is false (default), uses only each fighter's lightweight base avatar GLB
+   * facing straight at the camera, deferring `idle-1` animation downloads until the fighter is selected.
    */
   public async generateFighterPortraits(
-    ids: readonly CharacterId[] = CHARACTER_IDS
+    ids: readonly CharacterId[] = CHARACTER_IDS,
+    options: {
+      includeIdlePose?: boolean;
+      onProgress?: (characterId: CharacterId, url: string | null) => void;
+    } = {}
   ): Promise<Partial<Record<CharacterId, string>>> {
+    const includeIdlePose = options.includeIdlePose ?? false;
     const results: Partial<Record<CharacterId, string>> = {};
-    for (const id of ids) {
-      const cached = this.capturedPortraits.get(id);
-      if (cached) {
-        results[id] = cached;
+
+    const loaded = await Promise.all(
+      ids.map(async (id) => {
+        const cached = this.capturedPortraits.get(id);
+        if (cached) {
+          results[id] = cached;
+          options.onProgress?.(id, cached);
+          return { id, scene: null as THREE.Group | null, clip: null as THREE.AnimationClip | null, fromCache: true };
+        }
+        if (includeIdlePose) {
+          const { scene, clip } = await this.loadShowcaseModelAndIdle(
+            id,
+            'idle-1',
+            `${id}_portrait_idle-1`
+          );
+          return { id, scene, clip, fromCache: false };
+        }
+        const scene = await CharacterFactory.loadCharacterGLBModel(id);
+        return { id, scene, clip: null, fromCache: false };
+      })
+    );
+
+    if (this.disposed) return results;
+
+    for (const item of loaded) {
+      if (item.fromCache) continue;
+      if (!item.scene) {
+        options.onProgress?.(item.id, null);
         continue;
       }
-      const { scene, clip } = await this.loadShowcaseModelAndIdle(
-        id,
-        'idle-1',
-        `${id}_portrait_idle-1`
-      );
-      if (this.disposed) return results;
-      if (scene) {
-        const dataUrl = this.capturePortraitFromLoaded(id, scene, clip);
-        if (dataUrl) results[id] = dataUrl;
+      const dataUrl = this.capturePortraitFromLoaded(item.id, item.scene, item.clip);
+      if (dataUrl) {
+        results[item.id] = dataUrl;
       }
+      options.onProgress?.(item.id, dataUrl ?? null);
     }
+
     return results;
   }
 

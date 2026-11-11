@@ -237,6 +237,7 @@ export class UIManager {
   private pendingUnlockSlot: 'p1' | 'cpu' | null = null;
 
   private readonly initialDefaults = getDefaultMatchup();
+  private readonly portraitUrls: Record<CharacterId, string> = { ...PORTRAIT_MAP };
   private selectActiveSlot: 'p1' | 'cpu' = 'p1';
   private selectP1: CharacterId = this.initialDefaults.player;
   private selectCpu: CharacterId = this.initialDefaults.opponent;
@@ -335,22 +336,45 @@ export class UIManager {
 
   private populateAvatars(): void {
     CHARACTER_IDS.forEach((id) => {
-      this.rosterImages[id].src = PORTRAIT_MAP[id];
+      this.rosterImages[id].src = this.portraitUrls[id];
     });
 
-    this.leftSlot.avatarImg.src = PORTRAIT_MAP[this.selectP1];
+    this.leftSlot.avatarImg.src = this.portraitUrls[this.selectP1];
     this.leftSlot.name.textContent = getCharacterUpperName(this.selectP1);
-    this.rightSlot.avatarImg.src = PORTRAIT_MAP[this.selectCpu];
+    this.rightSlot.avatarImg.src = this.portraitUrls[this.selectCpu];
     this.rightSlot.name.textContent = getCharacterUpperName(this.selectCpu);
   }
 
   public setFighterPortraits(portraits: Partial<Record<CharacterId, string>>): void {
     CHARACTER_IDS.forEach((id) => {
       const url = portraits[id];
-      if (url) {
-        this.rosterImages[id].src = url;
+      if (!url) return;
+      this.portraitUrls[id] = url;
+      this.rosterImages[id].src = url;
+      if (id === this.lastKnownPlayer || id === this.selectP1) {
+        this.leftSlot.avatarImg.src = url;
+      }
+      if (id === this.lastKnownOpponent || id === this.selectCpu) {
+        this.rightSlot.avatarImg.src = url;
       }
     });
+  }
+
+  public async waitForRosterPortraitsReady(timeoutMs = 350): Promise<void> {
+    const decodeTasks = CHARACTER_IDS.map((id) => {
+      const img = this.rosterImages[id] as HTMLImageElement & {
+        decode?: () => Promise<void>;
+      };
+      if (typeof img?.decode === 'function') {
+        return img.decode().catch(() => undefined);
+      }
+      return Promise.resolve();
+    });
+
+    await Promise.race([
+      Promise.all(decodeTasks).then(() => undefined),
+      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+    ]);
   }
 
   private bindEvents(): void {
@@ -1200,7 +1224,7 @@ export class UIManager {
     slot.tag.classList.toggle('fighter-tag--target', !fighter.isBossInfinite);
 
     slot.avatar.className = `fighter-avatar fighter-avatar--${fighter.id}`;
-    slot.avatarImg.src = PORTRAIT_MAP[fighter.id];
+    slot.avatarImg.src = this.portraitUrls[fighter.id];
     slot.avatarImg.alt = fighter.displayName;
 
     slot.track.classList.toggle('health-bar-track--infinite', fighter.isBossInfinite);

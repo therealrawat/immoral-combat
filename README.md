@@ -22,6 +22,9 @@ Immoral Combat is a Tekken-inspired 1v1 browser fighting game featuring a full-3
 - **Sacred Character Lock (`src/characters/chinuAccess.ts` & `vite.config.ts`)**
   - **Chinu** starts locked on boot (`priyanshu` vs `modiji` default matchup) and cannot be picked via hover, `RANDOM`, or controller APIs until unlocked with the secret key configured in `.env`.
   - Passwords are hashed with a salted SHA-256 digest at build/config time—plaintext credentials from `.env` are **never** embedded in client bundles (`dist/`).
+- **On-Demand Asset Streaming & Loaders (`GameController`, `CharacterSelectStage`, `StageManager`)**
+  - **Initial Setup Loader (`#initial-loader`):** Preloads UI styling, all 5 roster fighter avatar portraits, and the initial 2 showcase stances before revealing Fighter Select—keeping unselected `idle` animations, combat movesets, and all arena stage GLBs unloaded upfront.
+  - **Lazy Select & Match Loaders (`#select-*-loading`, `#match-loader`):** Streams extra stance/showcase clips on hover dwell/selection and downloads only the chosen **2 fighters' combat animations** + **1 chosen arena stage GLB** on **FIGHT NOW** (with instant zero-download cache hits on rematches and only active combatants attached to the Three.js scene).
 - **Procedural Web Audio & Interactive Controls Manual**
   - Synthesized punches, kicks, blocks, signature chimes, KO impacts, and crowd reactions via the Web Audio API (`SoundManager`), toggleable in the HUD (`🔊 SFX ON`), alongside an in-game Controls Guide modal (`H` / `F1`).
 

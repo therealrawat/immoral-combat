@@ -61,6 +61,16 @@ const chinuHash = chinuPassword
 
 export default defineConfig({
   assetsInclude: ['**/*.glb'],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/three')) return 'vendor-three';
+          if (id.includes('node_modules/gsap')) return 'vendor-gsap';
+        },
+      },
+    },
+  },
   define: {
     __CHINU_KEY_SALT__: JSON.stringify(chinuSalt),
     __CHINU_KEY_HASH__: JSON.stringify(chinuHash),
