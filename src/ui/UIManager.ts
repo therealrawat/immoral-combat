@@ -196,6 +196,22 @@ export class UIManager {
   private readonly selectCtrlStage = document.getElementById('select-ctrl-stage');
   private readonly selectStageLabel = document.getElementById('select-stage-label');
   private readonly selectCtrlFight = document.getElementById('select-ctrl-fight')!;
+  private readonly selectP1Loading = document.getElementById('select-p1-loading');
+  private readonly selectP1LoadingText = document.getElementById('select-p1-loading-text');
+  private readonly selectCpuLoading = document.getElementById('select-cpu-loading');
+  private readonly selectCpuLoadingText = document.getElementById('select-cpu-loading-text');
+
+  private readonly initialLoader = document.getElementById('initial-loader');
+  private readonly initialLoaderTitle = document.getElementById('initial-loader-title');
+  private readonly initialLoaderStatus = document.getElementById('initial-loader-status');
+  private readonly initialLoaderFill = document.getElementById('initial-loader-fill');
+  private readonly initialLoaderPercent = document.getElementById('initial-loader-percent');
+
+  private readonly matchLoader = document.getElementById('match-loader');
+  private readonly matchLoaderTitle = document.getElementById('match-loader-title');
+  private readonly matchLoaderStatus = document.getElementById('match-loader-status');
+  private readonly matchLoaderFill = document.getElementById('match-loader-fill');
+  private readonly matchLoaderPercent = document.getElementById('match-loader-percent');
 
   private readonly rosterTiles = {} as Record<RosterSlotId, HTMLButtonElement>;
   private readonly rosterImages = {} as Record<CharacterId, HTMLImageElement>;
@@ -215,6 +231,7 @@ export class UIManager {
   private readonly pressedKeys = new Set<string>();
   private toastTimeline?: gsap.core.Timeline;
   private quipHideTimer?: number;
+  private hoverPreviewTimer?: number;
   private lastQuip = '';
   private movementLocked = false;
   private pendingUnlockSlot: 'p1' | 'cpu' | null = null;
@@ -303,14 +320,6 @@ export class UIManager {
           lockBadge.className = 'roster-sacred-lock hidden';
           lockBadge.id = `roster-lock-${slotId}`;
           lockBadge.textContent = '🔒 LOCKED';
-          tile.appendChild(lockBadge);
-          this.rosterSacredLockBadge = lockBadge;
-        }
-        if (isSacredCharacter(slotId)) {
-          const lockBadge = document.createElement('span');
-          lockBadge.className = 'roster-sacred-lock hidden';
-          lockBadge.id = `roster-lock-${slotId}`;
-          lockBadge.textContent = '🔒 LOCKED ';
           tile.appendChild(lockBadge);
           this.rosterSacredLockBadge = lockBadge;
         }
@@ -481,10 +490,14 @@ export class UIManager {
     ROSTER_ORDER.forEach((slotId) => {
       const tile = this.rosterTiles[slotId];
       tile.addEventListener('pointerenter', () => {
-        this.previewRosterCursor(slotId);
+        this.previewRosterCursor(slotId, true);
+      });
+      tile.addEventListener('pointerleave', () => {
+        this.cancelPendingHoverPreview();
       });
       tile.addEventListener('click', () => {
         unlockAndBlur(tile);
+        this.cancelPendingHoverPreview();
         this.confirmRosterSlot(slotId);
       });
     });
@@ -645,10 +658,107 @@ export class UIManager {
     this.selectPromptText.textContent = 'SACRED CHINU UNLOCKED! 👑';
   }
 
-  private previewRosterCursor(slotId: RosterSlotId): void {
+  public getActiveStageId(): string {
+    return this.activeStageId;
+  }
+
+  public isInitialLoaderOpen(): boolean {
+    return Boolean(this.initialLoader && !this.initialLoader.classList.contains('hidden'));
+  }
+
+  public isMatchLoaderOpen(): boolean {
+    return Boolean(this.matchLoader && !this.matchLoader.classList.contains('hidden'));
+  }
+
+  public setInitialLoaderProgress(percent: number, status?: string, title?: string): void {
+    const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+    if (this.initialLoaderFill) {
+      this.initialLoaderFill.style.width = `${clamped}%`;
+    }
+    if (this.initialLoaderPercent) {
+      this.initialLoaderPercent.textContent = `${clamped}%`;
+    }
+    if (status && this.initialLoaderStatus) {
+      this.initialLoaderStatus.textContent = status;
+    }
+    if (title && this.initialLoaderTitle) {
+      this.initialLoaderTitle.textContent = title;
+    }
+  }
+
+  public hideInitialLoader(): void {
+    if (!this.initialLoader) return;
+    this.initialLoader.classList.add('hidden');
+    this.initialLoader.setAttribute('aria-hidden', 'true');
+  }
+
+  public setMatchLoaderState(
+    visible: boolean,
+    percent = 0,
+    status?: string,
+    title?: string
+  ): void {
+    if (!this.matchLoader) return;
+    const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+    this.matchLoader.classList.toggle('hidden', !visible);
+    this.matchLoader.setAttribute('aria-hidden', String(!visible));
+    if (this.matchLoaderFill) {
+      this.matchLoaderFill.style.width = `${clamped}%`;
+    }
+    if (this.matchLoaderPercent) {
+      this.matchLoaderPercent.textContent = `${clamped}%`;
+    }
+    if (status && this.matchLoaderStatus) {
+      this.matchLoaderStatus.textContent = status;
+    }
+    if (title && this.matchLoaderTitle) {
+      this.matchLoaderTitle.textContent = title;
+    }
+  }
+
+  public setSelectSideLoading(
+    side: 'p1' | 'cpu',
+    loading: boolean,
+    label?: string
+  ): void {
+    const badge = side === 'p1' ? this.selectP1Loading : this.selectCpuLoading;
+    const text = side === 'p1' ? this.selectP1LoadingText : this.selectCpuLoadingText;
+    if (!badge) return;
+    badge.classList.toggle('hidden', !loading);
+    if (label && text) {
+      text.textContent = label;
+    }
+  }
+
+  private cancelPendingHoverPreview(): void {
+    if (this.hoverPreviewTimer) {
+      clearTimeout(this.hoverPreviewTimer);
+      this.hoverPreviewTimer = undefined;
+    }
+  }
+
+  private previewRosterCursor(slotId: RosterSlotId, debounce3D = false): void {
     if (this.selectCursorSlot === slotId) return;
     this.selectCursorSlot = slotId;
+    this.cancelPendingHoverPreview();
 
+    if (!debounce3D) {
+      this.applyCursorFighterPreview(slotId);
+      this.renderSelectScreen();
+      return;
+    }
+
+    // Immediate highlight cursor feedback; wait 120ms dwell before downloading 3D GLB showcase assets.
+    this.renderSelectScreen();
+    this.hoverPreviewTimer = window.setTimeout(() => {
+      this.hoverPreviewTimer = undefined;
+      if (!this.isModalOpen() || this.selectCursorSlot !== slotId) return;
+      this.applyCursorFighterPreview(slotId);
+      this.renderSelectScreen();
+    }, 120);
+  }
+
+  private applyCursorFighterPreview(slotId: RosterSlotId): void {
     if (slotId !== 'random' && canSelectCharacter(slotId)) {
       if (this.selectActiveSlot === 'p1') {
         if (this.selectP1 !== slotId) {
@@ -673,8 +783,6 @@ export class UIManager {
         this.handlers.onPreviewSelectFighter('cpu', this.selectCpu, this.selectCpuIdle, true);
       }
     }
-
-    this.renderSelectScreen();
   }
 
   private pickRandomCharacter(exclude?: CharacterId): CharacterId {
@@ -897,6 +1005,10 @@ export class UIManager {
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
     this.handlers.onUserGesture();
+
+    if (this.isInitialLoaderOpen() || this.isMatchLoaderOpen()) {
+      return;
+    }
 
     if (this.isUnlockModalOpen()) {
       if (event.code === 'Escape') {
@@ -1256,6 +1368,7 @@ export class UIManager {
     window.removeEventListener('keyup', this.handleKeyUp);
     window.removeEventListener('blur', this.handleWindowBlur);
     if (this.quipHideTimer) clearTimeout(this.quipHideTimer);
+    this.cancelPendingHoverPreview();
     this.toastTimeline?.kill();
   }
 }

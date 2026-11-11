@@ -126,7 +126,13 @@
         <div class="select-nameplate-row">
           <div class="select-ribbon select-ribbon--p1">
             <div class="select-ribbon-content">
-              <span class="select-epithet" id="select-p1-epithet">Unstoppable Real Boss</span>
+              <div class="select-epithet-row">
+                <span class="select-epithet" id="select-p1-epithet">Unstoppable Real Boss</span>
+                <span class="select-loading-pill hidden" id="select-p1-loading" role="status" aria-live="polite">
+                  <span class="select-loading-spinner" aria-hidden="true"></span>
+                  <span id="select-p1-loading-text">LOADING 3D...</span>
+                </span>
+              </div>
               <h2 class="select-fighter-name" id="select-p1-name">PLAYER 1</h2>
             </div>
             <div class="select-stance-pills" role="group" aria-label="Player 1 Idle Pose">
@@ -145,7 +151,13 @@
               <button type="button" class="stance-pill" id="select-cpu-idle-2">IDLE 2</button>
             </div>
             <div class="select-ribbon-content">
-              <span class="select-epithet" id="select-cpu-epithet">Spirited Challenger</span>
+              <div class="select-epithet-row select-epithet-row--right">
+                <span class="select-loading-pill hidden" id="select-cpu-loading" role="status" aria-live="polite">
+                  <span class="select-loading-spinner" aria-hidden="true"></span>
+                  <span id="select-cpu-loading-text">LOADING 3D...</span>
+                </span>
+                <span class="select-epithet" id="select-cpu-epithet">Spirited Challenger</span>
+              </div>
               <h2 class="select-fighter-name" id="select-cpu-name">OPPONENT</h2>
             </div>
           </div>
@@ -342,6 +354,41 @@
         </div>
         <div class="signature-meter-prompt hidden" id="hud-p2-signature-prompt">
           Press F for Signature Move
+        </div>
+      </div>
+    </div>
+
+    <!-- First-Screen Initial Setup Loader -->
+    <div class="loader-overlay loader-overlay--initial" id="initial-loader" role="status" aria-live="polite"
+      aria-label="Loading Immoral Combat initial setup">
+      <div class="loader-card">
+        <div class="loader-emblem">IMMORAL COMBAT</div>
+        <div class="loader-subtitle" id="initial-loader-title">INITIALIZING ARENA SHOWCASE</div>
+        <div class="loader-progress-track" aria-hidden="true">
+          <div class="loader-progress-fill" id="initial-loader-fill" style="width: 12%"></div>
+        </div>
+        <div class="loader-meta-row">
+          <span class="loader-status-text" id="initial-loader-status">Loading initial UI &amp; showcase fighters...</span>
+          <span class="loader-percent" id="initial-loader-percent">12%</span>
+        </div>
+        <div class="loader-hint">On-demand streaming active — extra fighters &amp; stages load only when chosen</div>
+      </div>
+    </div>
+
+    <!-- On-Demand Match / Stage Loader (Selected Fighters & Stage Only) -->
+    <div class="loader-overlay loader-overlay--match hidden" id="match-loader" role="status" aria-live="polite"
+      aria-label="Loading selected fighters and stage">
+      <div class="loader-card loader-card--match">
+        <div class="loader-badge-row">
+          <span class="loader-tag">ON-DEMAND ARENA STREAM</span>
+        </div>
+        <div class="loader-matchup-title" id="match-loader-title">PREPARING MATCH</div>
+        <div class="loader-progress-track loader-progress-track--match" aria-hidden="true">
+          <div class="loader-progress-fill loader-progress-fill--match" id="match-loader-fill" style="width: 0%"></div>
+        </div>
+        <div class="loader-meta-row">
+          <span class="loader-status-text" id="match-loader-status">Streaming selected fighter rigs &amp; stage...</span>
+          <span class="loader-percent" id="match-loader-percent">0%</span>
         </div>
       </div>
     </div>

@@ -533,6 +533,12 @@ export class CharacterFactory {
     return this.loadCharacterGLBModel('chinu');
   }
 
+  private static readonly resolvedBaseModels = new Set<CharacterId>();
+
+  public static isBaseModelLoaded(characterId: CharacterId): boolean {
+    return this.resolvedBaseModels.has(characterId);
+  }
+
   public static async loadCharacterGLBModel(
     characterId: CharacterId
   ): Promise<THREE.Group | null> {
@@ -542,7 +548,12 @@ export class CharacterFactory {
 
     let pending = this.baseModelCache.get(characterId);
     if (!pending) {
-      pending = this.fetchBaseCharacterTemplate(characterId);
+      pending = this.fetchBaseCharacterTemplate(characterId).then((scene) => {
+        if (scene) {
+          this.resolvedBaseModels.add(characterId);
+        }
+        return scene;
+      });
       this.baseModelCache.set(characterId, pending);
     }
 
@@ -655,7 +666,8 @@ export class CharacterFactory {
   public static async loadNativeGLBClips(
     characterId: CharacterId,
     onBatch?: (batch: LoadedNativeGLBClips) => void,
-    targetRoot?: THREE.Object3D | null
+    targetRoot?: THREE.Object3D | null,
+    onProgress?: (completed: number, total: number) => void
   ): Promise<LoadedNativeGLBClips> {
     const clips: Partial<Record<FighterState, THREE.AnimationClip>> = {};
     const clipSpeeds: Partial<Record<FighterState, number>> = {};
@@ -663,6 +675,7 @@ export class CharacterFactory {
 
     const specs = buildConventionNativeClipSpecs(characterId);
     if (!specs.length) {
+      onProgress?.(1, 1);
       return { clips, clipSpeeds, clipRepetitions };
     }
 
@@ -674,39 +687,47 @@ export class CharacterFactory {
       else specsByUrl.set(spec.url, [spec]);
     }
 
+    const totalGroups = specsByUrl.size;
+    let completedGroups = 0;
+
     const loadUrlGroup = async ([url, urlSpecs]: [string, typeof specs]): Promise<void> => {
-      const loaded = await sharedAnimationManager.loadAnimation(urlSpecs[0].clipName, url);
-      if (!loaded) return;
+      try {
+        const loaded = await sharedAnimationManager.loadAnimation(urlSpecs[0].clipName, url);
+        if (!loaded) return;
 
-      const batchClips: Partial<Record<FighterState, THREE.AnimationClip>> = {};
-      const batchSpeeds: Partial<Record<FighterState, number>> = {};
-      const batchReps: Partial<Record<FighterState, number>> = {};
+        const batchClips: Partial<Record<FighterState, THREE.AnimationClip>> = {};
+        const batchSpeeds: Partial<Record<FighterState, number>> = {};
+        const batchReps: Partial<Record<FighterState, number>> = {};
 
-      for (const spec of urlSpecs) {
-        const retargeted = retargetClipToCharacter(loaded.clip, {
-          targetProfile,
-          sourceProfile: loaded.sourceProfile,
-          clipName: spec.clipName,
-          yawOffsetRad: spec.yawOffsetRad,
-          hipsYOffset: spec.hipsYOffset,
-          holdDurationSec: spec.holdDurationSec,
-          stripHorizontalRootMotion: spec.stripHorizontalRootMotion,
-        });
-        clips[spec.state] = retargeted;
-        clipSpeeds[spec.state] = spec.speed;
-        batchClips[spec.state] = retargeted;
-        batchSpeeds[spec.state] = spec.speed;
-        if (spec.repeatCount && spec.repeatCount > 1) {
-          clipRepetitions[spec.state] = spec.repeatCount;
-          batchReps[spec.state] = spec.repeatCount;
+        for (const spec of urlSpecs) {
+          const retargeted = retargetClipToCharacter(loaded.clip, {
+            targetProfile,
+            sourceProfile: loaded.sourceProfile,
+            clipName: spec.clipName,
+            yawOffsetRad: spec.yawOffsetRad,
+            hipsYOffset: spec.hipsYOffset,
+            holdDurationSec: spec.holdDurationSec,
+            stripHorizontalRootMotion: spec.stripHorizontalRootMotion,
+          });
+          clips[spec.state] = retargeted;
+          clipSpeeds[spec.state] = spec.speed;
+          batchClips[spec.state] = retargeted;
+          batchSpeeds[spec.state] = spec.speed;
+          if (spec.repeatCount && spec.repeatCount > 1) {
+            clipRepetitions[spec.state] = spec.repeatCount;
+            batchReps[spec.state] = spec.repeatCount;
+          }
         }
-      }
 
-      onBatch?.({
-        clips: batchClips,
-        clipSpeeds: batchSpeeds,
-        clipRepetitions: batchReps,
-      });
+        onBatch?.({
+          clips: batchClips,
+          clipSpeeds: batchSpeeds,
+          clipRepetitions: batchReps,
+        });
+      } finally {
+        completedGroups += 1;
+        onProgress?.(completedGroups, totalGroups);
+      }
     };
 
     const allEntries = Array.from(specsByUrl.entries());

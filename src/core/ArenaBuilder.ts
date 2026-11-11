@@ -166,6 +166,8 @@ export class StageManager {
   private currentStageRoot: THREE.Object3D | null = null;
   private shadowCatcher: THREE.Mesh | null = null;
   private activeStageId = '';
+  private loadedStageId = '';
+  private inFlightLoads = new Map<string, Promise<void>>();
   private loadToken = 0;
   private disposed = false;
 
@@ -183,7 +185,14 @@ export class StageManager {
     return this.activeStageId;
   }
 
-  public async loadStage(stageId: string): Promise<void> {
+  public isStageLoaded(stageId: string): boolean {
+    return !this.disposed && this.loadedStageId === stageId.toLowerCase() && this.currentStageRoot !== null;
+  }
+
+  public async loadStage(
+    stageId: string,
+    onProgress?: (ratio: number) => void
+  ): Promise<void> {
     if (this.disposed) return;
 
     const normalizedId = stageId.toLowerCase();
@@ -193,31 +202,63 @@ export class StageManager {
       return;
     }
 
-    this.activeStageId = normalizedId;
-    const token = ++this.loadToken;
-
-    try {
-      const gltf = await this.loader.loadAsync(url);
-      if (this.disposed || token !== this.loadToken) {
-        disposeObject3D(gltf.scene);
-        return;
-      }
-
-      this.clearShadowCatcher();
-      this.clearCurrentStage();
-
-      const preset = applyStageTransformAndGround(gltf.scene, normalizedId);
-      this.sceneManager.setAtmosphere(
-        preset.bgHex,
-        preset.fogHex,
-        preset.fogNear,
-        preset.fogFar
-      );
-      this.sceneManager.scene.add(gltf.scene);
-      this.currentStageRoot = gltf.scene;
-    } catch (error) {
-      console.warn(`[StageManager] Failed to load stage "${stageId}":`, error);
+    if (this.isStageLoaded(normalizedId)) {
+      this.activeStageId = normalizedId;
+      onProgress?.(1);
+      return;
     }
+
+    this.activeStageId = normalizedId;
+    const existing = this.inFlightLoads.get(normalizedId);
+    if (existing) {
+      await existing;
+      if (this.isStageLoaded(normalizedId)) {
+        onProgress?.(1);
+      }
+      return;
+    }
+
+    const token = ++this.loadToken;
+    const runLoad = async (): Promise<void> => {
+      try {
+        onProgress?.(0.05);
+        const gltf = await this.loader.loadAsync(url, (evt) => {
+          if (this.disposed || token !== this.loadToken) return;
+          if (evt.lengthComputable && evt.total > 0) {
+            onProgress?.(Math.min(0.98, evt.loaded / evt.total));
+          }
+        });
+        if (this.disposed || token !== this.loadToken) {
+          disposeObject3D(gltf.scene);
+          return;
+        }
+
+        this.clearShadowCatcher();
+        this.clearCurrentStage();
+
+        const preset = applyStageTransformAndGround(gltf.scene, normalizedId);
+        this.sceneManager.setAtmosphere(
+          preset.bgHex,
+          preset.fogHex,
+          preset.fogNear,
+          preset.fogFar
+        );
+        this.sceneManager.scene.add(gltf.scene);
+        this.currentStageRoot = gltf.scene;
+        this.loadedStageId = normalizedId;
+        onProgress?.(1);
+      } catch (error) {
+        console.warn(`[StageManager] Failed to load stage "${stageId}":`, error);
+      } finally {
+        if (this.inFlightLoads.get(normalizedId) === task) {
+          this.inFlightLoads.delete(normalizedId);
+        }
+      }
+    };
+    const task = runLoad();
+
+    this.inFlightLoads.set(normalizedId, task);
+    await task;
   }
 
   private clearShadowCatcher(): void {
@@ -228,6 +269,7 @@ export class StageManager {
   }
 
   private clearCurrentStage(): void {
+    this.loadedStageId = '';
     if (!this.currentStageRoot) return;
     this.currentStageRoot.removeFromParent();
     disposeObject3D(this.currentStageRoot);
@@ -237,6 +279,7 @@ export class StageManager {
   public dispose(): void {
     this.disposed = true;
     this.loadToken++;
+    this.inFlightLoads.clear();
     this.clearShadowCatcher();
     this.clearCurrentStage();
   }

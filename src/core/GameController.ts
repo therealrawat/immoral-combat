@@ -23,7 +23,7 @@ import {
 } from '../signatures';
 import { CharacterSelectStage } from '../ui/CharacterSelectStage';
 import { UIManager } from '../ui/UIManager';
-import { StageManager } from './ArenaBuilder';
+import { StageManager, getStageDisplayName } from './ArenaBuilder';
 import { FighterParticipantConfig, GameManager, PlayerSlot } from './GameManager';
 import { SceneManager } from './SceneManager';
 
@@ -254,16 +254,32 @@ export class GameController {
   private readonly transientDisposables = new Set<{ dispose(): void }>();
   private koRecoveryTimeoutId: number | null = null;
   private cachedSignatureCtx?: SignatureMoveContext;
+  private readonly loadedCombatCharacters = new Set<CharacterId>();
+  private readonly combatLoadPromises = new Map<CharacterId, Promise<void>>();
+  private readonly baseSwapPromises = new Map<CharacterId, Promise<THREE.Group | null>>();
+  private matchLoadToken = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.sceneManager = new SceneManager(canvas);
     this.sound = new SoundManager();
     this.stageManager = new StageManager(this.sceneManager);
-    void this.stageManager.loadStage(this.activeStageId);
 
     this.selectStage = new CharacterSelectStage(
       canvas.clientWidth || window.innerWidth,
       canvas.clientHeight || window.innerHeight,
+      {
+        onSideLoadingChange: (side, loading, charId) => {
+          const label = loading
+            ? `LOADING ${FIGHTER_META[charId].displayName.toUpperCase()}...`
+            : undefined;
+          this.ui.setSelectSideLoading(side, loading, label);
+        },
+        onPortraitReady: (charId, url) => {
+          if (!this.disposed) {
+            this.ui.setFighterPortraits({ [charId]: url });
+          }
+        },
+      }
     );
     this.sceneManager.setOnResize((w, h) => this.selectStage.resize(w, h));
 
@@ -283,7 +299,9 @@ export class GameController {
     });
     for (const rig of allRigs) {
       this.rigs.set(rig.id, rig);
-      this.sceneManager.scene.add(rig.root);
+      if (rig.root.visible) {
+        this.sceneManager.scene.add(rig.root);
+      }
       this.physics.registerFighter(rig);
 
       const anim = new AnimationController(rig, (finishedState) => {
@@ -360,20 +378,18 @@ export class GameController {
         void this.selectStage.setFighter(side, char, variant, animate);
       },
       onSelectModalOpened: () => {
+        this.matchLoadToken++;
+        this.ui.setMatchLoaderState(false);
         this.sound.playClick();
         this.gameManager.pause();
       },
       onSelectModalClosed: () => {
-        if (
+        const shouldStartFresh =
           this.pendingMatchRestartAfterModalClose ||
           this.gameManager.getState() === 'INIT' ||
-          this.gameManager.getState() === 'MATCH_OVER'
-        ) {
-          this.pendingMatchRestartAfterModalClose = false;
-          this.gameManager.startMatch();
-        } else {
-          this.gameManager.resume();
-        }
+          this.gameManager.getState() === 'MATCH_OVER';
+        this.pendingMatchRestartAfterModalClose = false;
+        void this.prepareMatchAndStart(shouldStartFresh);
       },
       onRematch: () => {
         this.sound.playClick();
@@ -446,57 +462,299 @@ export class GameController {
 
     this.cpuAi.reset(performance.now(), 1350);
     this.syncHUD();
-    void this.selectStage.setFighter('p1', this.selectedCharacter, 'idle-1', false);
-    void this.selectStage.setFighter('cpu', this.opponentCharacter, 'idle-1', false);
-    void this.selectStage.generateFighterPortraits().then((portraits) => {
-      if (!this.disposed) {
-        this.ui.setFighterPortraits(portraits);
-      }
-    });
-    void this.initAllCharactersGLB();
+    void this.runInitialSetupLoader();
   }
 
-  private async initAllCharactersGLB(): Promise<void> {
-    const ids = CHARACTER_IDS;
-    // Stage 1: Load and swap all base T-pose/avatar GLB models before shared animation clips
-    const targetScenes = await Promise.all(ids.map((id) => this.initCharacterBaseGLB(id)));
+  private async runInitialSetupLoader(): Promise<void> {
+    const leftName = FIGHTER_META[this.selectedCharacter].displayName;
+    const rightName = FIGHTER_META[this.opponentCharacter].displayName;
+    this.ui.setInitialLoaderProgress(
+      14,
+      `Setting up UI & showcase for ${leftName} vs ${rightName}...`
+    );
+
+    const fontDoc =
+      typeof document !== 'undefined'
+        ? (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts
+        : undefined;
+    if (fontDoc?.ready) {
+      await Promise.race([
+        fontDoc.ready.catch(() => undefined),
+        new Promise<void>((resolve) => {
+          const timer = window.setTimeout(resolve, 450);
+          this.activeTimeouts.push(timer);
+        }),
+      ]);
+    }
     if (this.disposed) return;
 
-    // Stage 2: Load & retarget shared/native Mixamo/Avaturn animation clips onto each rig
-    await Promise.all(ids.map((id, idx) => this.initCharacterNativeClips(id, targetScenes[idx])));
+    this.ui.setInitialLoaderProgress(
+      34,
+      `Loading ${leftName} & ${rightName} showcase 3D models...`
+    );
+
+    let doneCount = 0;
+    const bumpShowcase = (loadedName: string) => {
+      if (this.disposed) return;
+      doneCount += 1;
+      const pct = doneCount >= 2 ? 96 : 66;
+      const msg =
+        doneCount >= 2
+          ? 'Showcase ready — extra fighters & stages load on demand'
+          : `${loadedName} showcase ready — finishing setup...`;
+      this.ui.setInitialLoaderProgress(pct, msg);
+    };
+
+    await Promise.all([
+      this.selectStage
+        .setFighter('p1', this.selectedCharacter, 'idle-1', false)
+        .finally(() => bumpShowcase(leftName)),
+      this.selectStage
+        .setFighter('cpu', this.opponentCharacter, 'idle-1', false)
+        .finally(() => bumpShowcase(rightName)),
+    ]);
+
+    if (this.disposed) return;
+    this.ui.setInitialLoaderProgress(100, 'Arena Showcase Ready!');
+    this.ui.hideInitialLoader();
+  }
+
+  private syncSceneRigsVisibility(leftId: CharacterId, rightId: CharacterId): void {
+    for (const [id, rig] of this.rigs.entries()) {
+      const isActive = id === leftId || id === rightId;
+      rig.root.visible = isActive;
+      if (isActive && rig.root.parent !== this.sceneManager.scene) {
+        this.sceneManager.scene.add(rig.root);
+      } else if (!isActive && rig.root.parent === this.sceneManager.scene) {
+        rig.root.removeFromParent();
+      }
+    }
+  }
+
+  private async ensureCharacterCombatLoaded(
+    id: CharacterId,
+    onProgress?: (ratio: number) => void
+  ): Promise<void> {
+    if (this.disposed) return;
+    if (this.loadedCombatCharacters.has(id)) {
+      onProgress?.(1);
+      return;
+    }
+
+    const existing = this.combatLoadPromises.get(id);
+    if (existing) {
+      await existing;
+      onProgress?.(1);
+      return;
+    }
+
+    const task = (async () => {
+      try {
+        onProgress?.(0.08);
+        const targetScene = await this.initCharacterBaseGLB(id);
+        if (this.disposed) return;
+        onProgress?.(0.35);
+
+        await this.initCharacterNativeClips(id, targetScene, (completed, total) => {
+          onProgress?.(0.35 + 0.65 * (completed / Math.max(total, 1)));
+        });
+        if (!this.disposed) {
+          this.loadedCombatCharacters.add(id);
+          onProgress?.(1);
+        }
+      } finally {
+        this.combatLoadPromises.delete(id);
+      }
+    })();
+
+    this.combatLoadPromises.set(id, task);
+    await task;
+  }
+
+  private async ensureMatchResourcesLoaded(
+    leftId: CharacterId,
+    rightId: CharacterId,
+    stageId: string
+  ): Promise<boolean> {
+    const token = ++this.matchLoadToken;
+    const needLeft = !this.loadedCombatCharacters.has(leftId);
+    const needRight = !this.loadedCombatCharacters.has(rightId);
+    const needStage = !this.stageManager.isStageLoaded(stageId);
+
+    if (!needLeft && !needRight && !needStage) {
+      return !this.disposed;
+    }
+
+    const p1Name = FIGHTER_META[this.selectedCharacter].displayName;
+    const p2Name = FIGHTER_META[this.opponentCharacter].displayName;
+    const stageLabel = getStageDisplayName(stageId);
+    const missingNames: string[] = [];
+    if (needLeft) missingNames.push(FIGHTER_META[leftId].displayName);
+    if (needRight) missingNames.push(FIGHTER_META[rightId].displayName);
+    if (needStage) missingNames.push(stageLabel);
+
+    this.gameManager.pause();
+    this.ui.setMatchLoaderState(
+      true,
+      8,
+      `Streaming ${missingNames.join(', ')}...`,
+      `${p1Name} vs ${p2Name} • ${stageLabel}`
+    );
+
+    const weights = {
+      left: needLeft ? 1 : 0,
+      right: needRight ? 1 : 0,
+      stage: needStage ? 1.2 : 0,
+    };
+    const totalWeight = Math.max(0.1, weights.left + weights.right + weights.stage);
+    const progress = {
+      left: needLeft ? 0 : 1,
+      right: needRight ? 0 : 1,
+      stage: needStage ? 0 : 1,
+    };
+
+    const updateBar = (statusText?: string) => {
+      if (this.disposed || token !== this.matchLoadToken) return;
+      const done =
+        progress.left * weights.left +
+        progress.right * weights.right +
+        progress.stage * weights.stage;
+      const pct = Math.min(99, Math.max(8, Math.round(8 + (done / totalWeight) * 90)));
+      this.ui.setMatchLoaderState(true, pct, statusText);
+    };
+
+    const tasks: Promise<void>[] = [];
+    if (needLeft) {
+      tasks.push(
+        this.ensureCharacterCombatLoaded(leftId, (r) => {
+          progress.left = r;
+          updateBar(
+            r >= 1
+              ? `${FIGHTER_META[leftId].displayName} combat moves ready`
+              : `Streaming ${FIGHTER_META[leftId].displayName} combat animations...`
+          );
+        })
+      );
+    }
+    if (needRight) {
+      tasks.push(
+        this.ensureCharacterCombatLoaded(rightId, (r) => {
+          progress.right = r;
+          updateBar(
+            r >= 1
+              ? `${FIGHTER_META[rightId].displayName} combat moves ready`
+              : `Streaming ${FIGHTER_META[rightId].displayName} combat animations...`
+          );
+        })
+      );
+    }
+    if (needStage) {
+      tasks.push(
+        this.stageManager.loadStage(stageId, (r) => {
+          progress.stage = r;
+          updateBar(r >= 1 ? `${stageLabel} loaded` : `Streaming ${stageLabel}...`);
+        })
+      );
+    }
+
+    try {
+      await Promise.all(tasks);
+      if (this.disposed || token !== this.matchLoadToken) {
+        return false;
+      }
+      this.ui.setMatchLoaderState(true, 100, `${stageLabel} & fighters ready!`);
+      return true;
+    } finally {
+      if (!this.disposed && token === this.matchLoadToken) {
+        this.ui.setMatchLoaderState(false, 100);
+      }
+    }
+  }
+
+  private async prepareMatchAndStart(startNewMatch: boolean): Promise<void> {
+    const leftId = this.leftFighterId;
+    const rightId = this.rightFighterId;
+    const stageId = this.activeStageId;
+    this.syncSceneRigsVisibility(leftId, rightId);
+
+    const ready = await this.ensureMatchResourcesLoaded(leftId, rightId, stageId);
+    if (!ready || this.disposed || this.ui.isModalOpen()) return;
+    if (
+      this.leftFighterId !== leftId ||
+      this.rightFighterId !== rightId ||
+      this.activeStageId !== stageId
+    ) {
+      return;
+    }
+
+    if (startNewMatch) {
+      this.gameManager.startMatch();
+      if (this.selectedCharacter === 'chinu' && this.anims.get('chinu')?.hasState('ENTRY')) {
+        this.cpuAi.reset(performance.now(), 1650);
+        this.triggerChinuEntryAction(true);
+      }
+    } else {
+      this.gameManager.resume();
+    }
+  }
+
+  private async prepareStageSwitchWithLoader(stageId: string): Promise<void> {
+    const ready = await this.ensureMatchResourcesLoaded(
+      this.leftFighterId,
+      this.rightFighterId,
+      stageId
+    );
+    if (!ready || this.disposed || this.ui.isModalOpen()) return;
+    if (this.gameManager.isPausedState()) {
+      this.gameManager.resume();
+    }
   }
 
   private async initCharacterBaseGLB(id: CharacterId): Promise<THREE.Group | null> {
-    const scene = await CharacterFactory.loadCharacterGLBModel(id);
-    if (!scene || this.disposed) return null;
+    const cachedSwap = this.baseSwapPromises.get(id);
+    if (cachedSwap) {
+      return cachedSwap;
+    }
 
-    const rig = this.rigs.get(id);
-    const anim = this.anims.get(id);
-    if (!rig || !anim) return scene;
+    const swapTask = (async (): Promise<THREE.Group | null> => {
+      const scene = await CharacterFactory.loadCharacterGLBModel(id);
+      if (!scene || this.disposed) return null;
 
-    const baseClips = createHumanoidGLBClips(scene);
-    const applySwap = (): void => {
-      if (this.disposed) return;
-      if (this.isCinematicActive) {
-        this.scheduleUnscaled(applySwap, 120);
-        return;
-      }
+      const rig = this.rigs.get(id);
+      const anim = this.anims.get(id);
+      if (!rig || !anim) return scene;
 
-      const activeState = anim.getState();
-      CharacterFactory.swapWithGLBModel(rig, scene);
-      anim.swapRigClips(baseClips, activeState);
-    };
+      const baseClips = createHumanoidGLBClips(scene);
+      const applySwap = (): void => {
+        if (this.disposed) return;
+        if (this.isCinematicActive) {
+          this.scheduleUnscaled(applySwap, 120);
+          return;
+        }
 
-    applySwap();
-    return scene;
+        const activeState = anim.getState();
+        CharacterFactory.swapWithGLBModel(rig, scene);
+        anim.swapRigClips(baseClips, activeState);
+      };
+
+      applySwap();
+      return scene;
+    })();
+
+    this.baseSwapPromises.set(id, swapTask);
+    return swapTask;
   }
 
   private async initCharacterNativeClips(
     id: CharacterId,
-    targetRoot?: THREE.Object3D | null
+    targetRoot?: THREE.Object3D | null,
+    onProgress?: (completed: number, total: number) => void
   ): Promise<void> {
     const anim = this.anims.get(id);
-    if (!anim) return;
+    if (!anim) {
+      onProgress?.(1, 1);
+      return;
+    }
 
     const applyBatch = (batch: LoadedNativeGLBClips): void => {
       if (this.disposed) return;
@@ -525,7 +783,7 @@ export class GameController {
       }
     };
 
-    await CharacterFactory.loadNativeGLBClips(id, applyBatch, targetRoot);
+    await CharacterFactory.loadNativeGLBClips(id, applyBatch, targetRoot, onProgress);
   }
 
   public start(): void {
@@ -542,6 +800,10 @@ export class GameController {
     if (this.ui.isModalOpen()) {
       this.selectStage.update(rawDelta);
       this.sceneManager.renderCustomScene(this.selectStage.scene, this.selectStage.camera);
+      return;
+    }
+
+    if (this.ui.isInitialLoaderOpen() || this.ui.isMatchLoaderOpen()) {
       return;
     }
 
@@ -781,8 +1043,8 @@ export class GameController {
     this.leftFighterId = newLeft;
     this.rightFighterId = newRight;
 
-    for (const [id, rig] of this.rigs.entries()) {
-      rig.root.visible = id === newLeft || id === newRight;
+    this.syncSceneRigsVisibility(newLeft, newRight);
+    for (const [id] of this.rigs.entries()) {
       this.physics.setMoveInput(id, 0, 0);
       this.physics.setLocomotionState(id, false, null);
       this.physics.setMovementPaused(id, false);
@@ -805,19 +1067,16 @@ export class GameController {
       this.buildParticipantConfig(newRight, 'player2')
     );
 
-    if (this.ui.isModalOpen()) {
-      this.pendingMatchRestartAfterModalClose = true;
-    } else {
-      this.gameManager.startMatch();
-    }
-
     this.sound.playClick();
     this.syncHUD();
 
     const hasAutoEntry = player === 'chinu' && this.anims.get('chinu')?.hasState('ENTRY');
     this.cpuAi.reset(performance.now(), hasAutoEntry ? 1650 : 1350);
-    if (hasAutoEntry && !this.ui.isModalOpen()) {
-      this.triggerChinuEntryAction(true);
+
+    if (this.ui.isModalOpen()) {
+      this.pendingMatchRestartAfterModalClose = true;
+    } else {
+      void this.prepareMatchAndStart(true);
     }
   }
 
@@ -2274,13 +2533,15 @@ export class GameController {
     this.syncHUD();
   }
 
-  /** Switches the active 3D stage GLB in the fight arena. */
+  /** Switches the active 3D stage GLB in the fight arena (defers download while Select screen is open). */
   public setStage(stageId: string): void {
     const normalized = stageId.toLowerCase();
     if (normalized === this.activeStageId) return;
     this.activeStageId = normalized;
     this.sound.playClick();
-    void this.stageManager.loadStage(normalized);
+    if (!this.ui.isModalOpen()) {
+      void this.prepareStageSwitchWithLoader(normalized);
+    }
     this.syncHUD();
   }
 
@@ -2311,6 +2572,9 @@ export class GameController {
 
   public dispose(): void {
     this.disposed = true;
+    this.matchLoadToken++;
+    this.ui.setMatchLoaderState(false);
+    this.ui.hideInitialLoader();
     this.gameManager.dispose();
     this.cancelChinuEntry();
     this.clearTransientDisposables();

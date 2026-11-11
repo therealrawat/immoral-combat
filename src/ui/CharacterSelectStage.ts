@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CHARACTER_IDS } from '../characters/characterNames';
 import { getDefaultMatchup } from '../characters/chinuAccess';
 import gsap from 'gsap';
@@ -13,6 +14,11 @@ import { sharedAnimationManager } from '../characters/SharedAnimationManager';
 import { CharacterId, SelectIdleVariant } from '../types/game';
 
 export type SelectSide = 'p1' | 'cpu';
+
+export interface CharacterSelectStageOptions {
+  onSideLoadingChange?: (side: SelectSide, loading: boolean, characterId: CharacterId) => void;
+  onPortraitReady?: (characterId: CharacterId, url: string) => void;
+}
 
 interface ShowcaseVariantTuning {
   clipYawOffset: number;
@@ -281,9 +287,16 @@ export class CharacterSelectStage {
   private backdropLogoTime = 0;
 
   private readonly slots: Record<SelectSide, ShowcaseSlot>;
+  private readonly options: CharacterSelectStageOptions;
+  private readonly loadedSelectKeys = new Set<string>();
+  private readonly capturedPortraits = new Map<CharacterId, string>();
+  private portraitRenderer: THREE.WebGLRenderer | null = null;
+  private portraitScene: THREE.Scene | null = null;
+  private portraitCamera: THREE.PerspectiveCamera | null = null;
   private disposed = false;
 
-  constructor(width: number, height: number) {
+  constructor(width: number, height: number, options: CharacterSelectStageOptions = {}) {
+    this.options = options;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x05070e);
     this.scene.fog = new THREE.FogExp2(0x05070e, 0.055);
@@ -561,6 +574,17 @@ export class CharacterSelectStage {
     this.camera.updateProjectionMatrix();
   }
 
+  public isCharacterPreviewLoaded(
+    characterId: CharacterId,
+    requestedVariant: SelectIdleVariant = 'idle-1'
+  ): boolean {
+    const available = getAvailableCharacterIdles(characterId);
+    const effectiveVariant: SelectIdleVariant = available.includes(requestedVariant)
+      ? requestedVariant
+      : 'idle-1';
+    return this.loadedSelectKeys.has(`${characterId}:${effectiveVariant}`);
+  }
+
   /**
    * Updates one side (`p1` or `cpu`) to display the chosen fighter using their
    * `idle-1` or `idle-2` GLB animation/pose.
@@ -581,22 +605,47 @@ export class CharacterSelectStage {
     slot.characterId = characterId;
     slot.variant = effectiveVariant;
     const token = ++slot.loadToken;
+    const cacheKey = `${characterId}:${effectiveVariant}`;
+    const alreadyCached = this.loadedSelectKeys.has(cacheKey);
 
     // Show immediate procedural fallback while GLB streams if slot has no model yet
     if (slot.container.children.length === 0) {
       this.mountProceduralFallback(slot, characterId);
     }
 
-    const config = SHOWCASE_CONFIGS[characterId];
-    const tuning = config.variants[effectiveVariant];
-    const { scene: glbScene, clip: idleClip } = await this.loadShowcaseModelAndIdle(
-      characterId,
-      effectiveVariant,
-      `${characterId}_select_${effectiveVariant}`
-    );
+    if (!alreadyCached) {
+      this.options.onSideLoadingChange?.(side, true, characterId);
+    }
+
+    let glbScene: THREE.Group | null = null;
+    let idleClip: THREE.AnimationClip | null = null;
+    try {
+      const loaded = await this.loadShowcaseModelAndIdle(
+        characterId,
+        effectiveVariant,
+        `${characterId}_select_${effectiveVariant}`
+      );
+      glbScene = loaded.scene;
+      idleClip = loaded.clip;
+    } finally {
+      if (!this.disposed && slot.loadToken === token) {
+        this.options.onSideLoadingChange?.(side, false, characterId);
+      }
+    }
 
     if (this.disposed || slot.loadToken !== token) return;
     if (!glbScene) return;
+
+    this.loadedSelectKeys.add(cacheKey);
+    const config = SHOWCASE_CONFIGS[characterId];
+    const tuning = config.variants[effectiveVariant];
+
+    if (this.options.onPortraitReady && !this.capturedPortraits.has(characterId)) {
+      const portraitUrl = this.capturePortraitFromLoaded(characterId, glbScene, idleClip);
+      if (portraitUrl) {
+        this.options.onPortraitReady(characterId, portraitUrl);
+      }
+    }
 
     this.clearSlot(slot);
 
@@ -735,36 +784,31 @@ export class CharacterSelectStage {
     return { scene, clip };
   }
 
-  /**
-   * Renders crisp 3D bust portrait thumbnails of all fighters using their `idle-1.glb`
-   * poses for the Tekken-style bottom character roster grid.
-   */
-  public async generateFighterPortraits(): Promise<Partial<Record<CharacterId, string>>> {
-    const results: Partial<Record<CharacterId, string>> = {};
+  private ensurePortraitRenderer(): {
+    renderer: THREE.WebGLRenderer;
+    scene: THREE.Scene;
+    camera: THREE.PerspectiveCamera;
+  } | null {
+    if (typeof window === 'undefined' || typeof WebGLRenderingContext === 'undefined') {
+      return null;
+    }
+    if (this.portraitRenderer && this.portraitScene && this.portraitCamera) {
+      return {
+        renderer: this.portraitRenderer,
+        scene: this.portraitScene,
+        camera: this.portraitCamera,
+      };
+    }
 
-    const loaded = await Promise.all(
-      CHARACTER_IDS.map(async (id) => {
-        const { scene, clip } = await this.loadShowcaseModelAndIdle(
-          id,
-          'idle-1',
-          `${id}_portrait_idle-1`
-        );
-        return { id, scene, clip };
-      })
-    );
-
-    if (this.disposed) return results;
-
-    let offscreenRenderer: THREE.WebGLRenderer | null = null;
     try {
-      offscreenRenderer = new THREE.WebGLRenderer({
+      const renderer = new THREE.WebGLRenderer({
         alpha: true,
         antialias: true,
         preserveDrawingBuffer: true,
       });
-      offscreenRenderer.setSize(180, 220, false);
-      offscreenRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-      offscreenRenderer.toneMappingExposure = 1.12;
+      renderer.setSize(180, 220, false);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.12;
 
       const snapScene = new THREE.Scene();
       snapScene.background = new THREE.Color(0x0b101d);
@@ -777,45 +821,86 @@ export class CharacterSelectStage {
       snapScene.add(ambient, key, rim);
 
       const snapCam = new THREE.PerspectiveCamera(26, 180 / 220, 0.1, 20);
-      const headWorld = new THREE.Vector3();
-
-      for (const item of loaded) {
-        if (!item.scene) continue;
-        const holder = new THREE.Group();
-        holder.add(item.scene);
-        snapScene.add(holder);
-
-        let mixer: THREE.AnimationMixer | null = null;
-        if (item.clip) {
-          mixer = new THREE.AnimationMixer(item.scene);
-          const action = mixer.clipAction(item.clip);
-          action.play();
-          mixer.update(0.2);
-        }
-        holder.updateMatrixWorld(true);
-
-        const headBone = item.scene.getObjectByName('Head');
-        if (headBone) {
-          headBone.getWorldPosition(headWorld);
-        } else {
-          headWorld.set(0, 1.95, 0);
-        }
-
-        snapCam.position.set(headWorld.x, headWorld.y + 0.01, 1.25);
-        snapCam.lookAt(headWorld.x, headWorld.y - 0.01, 0);
-
-        offscreenRenderer.render(snapScene, snapCam);
-        results[item.id] = offscreenRenderer.domElement.toDataURL('image/png');
-
-        mixer?.stopAllAction();
-        snapScene.remove(holder);
-      }
-    } catch (err) {
-      console.warn('Could not render 3D bust portraits:', err);
-    } finally {
-      offscreenRenderer?.dispose();
+      this.portraitRenderer = renderer;
+      this.portraitScene = snapScene;
+      this.portraitCamera = snapCam;
+      return { renderer, scene: snapScene, camera: snapCam };
+    } catch {
+      return null;
     }
+  }
 
+  private capturePortraitFromLoaded(
+    characterId: CharacterId,
+    sourceScene: THREE.Object3D,
+    clip: THREE.AnimationClip | null
+  ): string | null {
+    const existing = this.capturedPortraits.get(characterId);
+    if (existing) return existing;
+
+    const rig = this.ensurePortraitRenderer();
+    if (!rig) return null;
+
+    try {
+      const cloned = SkeletonUtils.clone(sourceScene);
+      const holder = new THREE.Group();
+      holder.add(cloned);
+      rig.scene.add(holder);
+
+      let mixer: THREE.AnimationMixer | null = null;
+      if (clip) {
+        mixer = new THREE.AnimationMixer(cloned);
+        mixer.clipAction(clip).play();
+        mixer.update(0.2);
+      }
+      holder.updateMatrixWorld(true);
+
+      const headWorld = new THREE.Vector3();
+      const headBone = cloned.getObjectByName('Head');
+      if (headBone) {
+        headBone.getWorldPosition(headWorld);
+      } else {
+        headWorld.set(0, 1.95, 0);
+      }
+
+      rig.camera.position.set(headWorld.x, headWorld.y + 0.01, 1.25);
+      rig.camera.lookAt(headWorld.x, headWorld.y - 0.01, 0);
+      rig.renderer.render(rig.scene, rig.camera);
+
+      const dataUrl = rig.renderer.domElement.toDataURL('image/png');
+      mixer?.stopAllAction();
+      rig.scene.remove(holder);
+      this.capturedPortraits.set(characterId, dataUrl);
+      return dataUrl;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Renders crisp 3D bust portrait thumbnails of fighters (on-demand utility).
+   */
+  public async generateFighterPortraits(
+    ids: readonly CharacterId[] = CHARACTER_IDS
+  ): Promise<Partial<Record<CharacterId, string>>> {
+    const results: Partial<Record<CharacterId, string>> = {};
+    for (const id of ids) {
+      const cached = this.capturedPortraits.get(id);
+      if (cached) {
+        results[id] = cached;
+        continue;
+      }
+      const { scene, clip } = await this.loadShowcaseModelAndIdle(
+        id,
+        'idle-1',
+        `${id}_portrait_idle-1`
+      );
+      if (this.disposed) return results;
+      if (scene) {
+        const dataUrl = this.capturePortraitFromLoaded(id, scene, clip);
+        if (dataUrl) results[id] = dataUrl;
+      }
+    }
     return results;
   }
 
@@ -824,6 +909,10 @@ export class CharacterSelectStage {
     window.removeEventListener('pointermove', this.handlePointerMove);
     this.clearSlot(this.slots.p1);
     this.clearSlot(this.slots.cpu);
+    this.portraitRenderer?.dispose();
+    this.portraitRenderer = null;
+    this.portraitScene = null;
+    this.portraitCamera = null;
     for (const tex of this.disposableTextures) tex.dispose();
     for (const geo of this.disposableGeometries) geo.dispose();
     for (const mat of this.disposableMaterials) mat.dispose();
