@@ -45,7 +45,7 @@ const SHOWCASE_CONFIGS: Record<CharacterId, CharacterShowcaseConfig> = {
     scaleMultiplier: 1.0,
     variants: {
       'idle-1': { clipYawOffset: 0.55, offsetX: 0, offsetY: 0, offsetZ: 0 },
-      'idle-2': { clipYawOffset: 0.42, offsetX: -0.42, offsetY: 1.18, offsetZ: 0.28 },
+      'idle-2': { clipYawOffset: 0.0, offsetX: 0, offsetY: 0, offsetZ: 0 },
     },
   },
   modiji: {
@@ -880,8 +880,14 @@ export class CharacterSelectStage {
 
       const headWorld = new THREE.Vector3();
       const neckWorld = new THREE.Vector3();
-      const headBone = cloned.getObjectByName('Head');
-      const neckBone = cloned.getObjectByName('Neck');
+      const headBone =
+        cloned.getObjectByName('Head') ||
+        cloned.getObjectByName('mixamorigHead') ||
+        cloned.getObjectByName('mixamorig:Head');
+      const neckBone =
+        cloned.getObjectByName('Neck') ||
+        cloned.getObjectByName('mixamorigNeck') ||
+        cloned.getObjectByName('mixamorig:Neck');
       const fullBounds = new THREE.Box3().setFromObject(holder);
       const topY = Number.isFinite(fullBounds.max.y) ? fullBounds.max.y : 2.18;
 
@@ -896,21 +902,23 @@ export class CharacterSelectStage {
         neckWorld.set(headWorld.x, headWorld.y - 0.14, headWorld.z);
       }
 
-      // Slice cleanly right under the jaw / upper neck so only the 3D GLB head floats above the HUD
-      const cutY = THREE.MathUtils.lerp(neckWorld.y, headWorld.y, 0.36);
-      const spanY = THREE.MathUtils.clamp(topY - cutY, 0.24, 0.52);
-      const centerY = (cutY + topY) * 0.5;
+      // Frame the head cleanly (eyes, hair, jawline, upper collar) without any destructive clipping plane
+      const faceCenterY = THREE.MathUtils.clamp(
+        (headWorld.y + neckWorld.y) * 0.5 + 0.04,
+        neckWorld.y + 0.04,
+        topY - 0.08
+      );
+      const framedSpan = THREE.MathUtils.clamp((topY - neckWorld.y) * 1.35, 0.38, 0.55);
       const halfFovRad = THREE.MathUtils.degToRad(rig.camera.fov * 0.5);
-      const distance = (spanY * 0.58) / Math.tan(halfFovRad);
+      const distance = (framedSpan * 0.5) / Math.tan(halfFovRad);
 
-      rig.camera.position.set(headWorld.x, centerY, headWorld.z + distance);
-      rig.camera.lookAt(headWorld.x, centerY, headWorld.z);
+      rig.camera.position.set(headWorld.x, faceCenterY, headWorld.z + distance);
+      rig.camera.lookAt(headWorld.x, faceCenterY, headWorld.z);
+      rig.camera.updateProjectionMatrix();
 
-      const neckClipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -cutY);
-      rig.renderer.clippingPlanes = [neckClipPlane];
+      rig.renderer.clippingPlanes = [];
       rig.renderer.clear();
       rig.renderer.render(rig.scene, rig.camera);
-      rig.renderer.clippingPlanes = [];
 
       const dataUrl = this.featherPortraitBottomEdge(rig.renderer.domElement);
       this.capturedPortraits.set(characterId, dataUrl);
@@ -927,19 +935,19 @@ export class CharacterSelectStage {
 
   private featherPortraitBottomEdge(sourceCanvas: HTMLCanvasElement): string {
     if (typeof document !== 'undefined') {
-      const w = sourceCanvas.width || 220;
-      const h = sourceCanvas.height || 220;
+      const w = sourceCanvas.width || 240;
+      const h = sourceCanvas.height || 240;
       const out = document.createElement('canvas');
       out.width = w;
       out.height = h;
       const ctx = out.getContext('2d');
       if (ctx) {
         ctx.drawImage(sourceCanvas, 0, 0);
-        // Must fill the entire (0, 0, w, h) rect for destination-in so 0..86% head stays opaque
+        // Soft feather at bottom 22% so the collar subtly fades into card/medallion frames
         ctx.globalCompositeOperation = 'destination-in';
         const fade = ctx.createLinearGradient(0, 0, 0, h);
         fade.addColorStop(0, 'rgba(0, 0, 0, 1)');
-        fade.addColorStop(0.86, 'rgba(0, 0, 0, 1)');
+        fade.addColorStop(0.78, 'rgba(0, 0, 0, 1)');
         fade.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = fade;
         ctx.fillRect(0, 0, w, h);
