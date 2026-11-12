@@ -8,3 +8,4 @@ export const amitabhSignatures: readonly SignatureMoveDefinition[] = [
   shahenshahIronFistSignature,
   agneepathBlastSignature,
 ];
+

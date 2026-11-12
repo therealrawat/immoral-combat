@@ -107,28 +107,42 @@ body,
 
 .fighter-avatar {
   position: relative;
-  top: -6px;
-  width: 78px;
-  height: 78px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
+  top: -4px;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 45% 35%, #232b38 0%, #0d121a 68%, #040608 100%);
+  border: 3.5px solid #94a3b8;
+  box-shadow:
+    0 0 0 1.5px #0f172a,
+    inset 0 3px 6px rgba(0, 0, 0, 0.95),
+    inset 0 -2px 4px rgba(255, 255, 255, 0.25),
+    0 8px 22px rgba(0, 0, 0, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  overflow: visible;
+  overflow: hidden;
   z-index: 8;
-  box-shadow: none;
   pointer-events: none;
 }
 
+.fighter-avatar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  z-index: 3;
+}
+
 .fighter-hud--left .fighter-avatar {
-  margin-right: -22px;
+  margin-right: -16px;
 }
 
 .fighter-hud--right .fighter-avatar {
-  margin-left: -22px;
+  margin-left: -16px;
 }
 
 .avatar-img {
@@ -137,9 +151,20 @@ body,
   object-fit: contain;
   object-position: center bottom;
   display: block;
+  border-radius: 50%;
   filter:
     drop-shadow(0 5px 10px rgba(0, 0, 0, 0.92))
     drop-shadow(0 0 2px rgba(255, 255, 255, 0.25));
+}
+
+.fighter-hud--is-player .fighter-avatar {
+  border-color: #facc15;
+  box-shadow:
+    0 0 0 1.5px #78350f,
+    inset 0 3px 6px rgba(0, 0, 0, 0.95),
+    inset 0 -2px 4px rgba(254, 240, 138, 0.45),
+    0 0 16px rgba(245, 158, 11, 0.55),
+    0 8px 22px rgba(0, 0, 0, 0.95);
 }
 
 .fighter-hud--is-player .avatar-img {
@@ -152,8 +177,9 @@ body,
 .fighter-avatar--priyanshu,
 .fighter-avatar--modiji,
 .fighter-avatar--trump,
-.fighter-avatar--putin {
-  background: transparent;
+.fighter-avatar--putin,
+.fighter-avatar--amitabh {
+  background: radial-gradient(circle at 45% 35%, #232b38 0%, #0d121a 68%, #040608 100%);
 }
 
 .fighter-info {
@@ -223,21 +249,27 @@ body,
   inset: 0 auto 0 0;
 }
 
-/* Health bars drain toward the center timer (MK / Tekken style) */
+/* Health bars drain toward outer medallions (MK / standard fighting game style) */
 .fighter-hud--left .health-bar-trail,
 .fighter-hud--left .health-bar-fill {
-  left: auto;
-  right: 0;
-}
-
-.fighter-hud--right .health-bar-trail,
-.fighter-hud--right .health-bar-fill {
   left: 0;
   right: auto;
 }
 
+.fighter-hud--right .health-bar-trail,
+.fighter-hud--right .health-bar-fill {
+  right: 0;
+  left: auto;
+}
+
+.fighter-hud--left .health-bar-trail {
+  background: linear-gradient(90deg, rgba(127, 29, 29, 0.35) 0%, #b91c1c 55%, #f87171 100%);
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.85);
+}
+
 .fighter-hud--right .health-bar-trail {
   background: linear-gradient(270deg, rgba(127, 29, 29, 0.35) 0%, #b91c1c 55%, #f87171 100%);
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.85);
 }
 
 .health-bar-fill--infinite {
@@ -301,44 +333,53 @@ body,
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   pointer-events: none;
 }
 
 .health-bar-label--left {
   justify-content: flex-start;
-  padding: 0 18px 0 32px;
+  padding: 0 18px 0 28px;
 }
 
 .health-bar-label--right {
   justify-content: flex-end;
-  padding: 0 32px 0 18px;
+  padding: 0 28px 0 18px;
+}
+
+.fighter-hud--left .fighter-name {
+  margin-right: auto;
+  text-align: left;
+}
+
+.fighter-hud--right .fighter-name {
+  margin-left: auto;
+  text-align: right;
 }
 
 .fighter-name {
   font-family: var(--font-arcade);
   font-style: italic;
   font-weight: 700;
-  font-size: 18px;
-  letter-spacing: 1px;
+  font-size: 19px;
+  letter-spacing: 1.5px;
   color: #f8fafc;
   text-transform: uppercase;
   line-height: 1;
   text-shadow:
-    0 1px 2px #000000,
-    0 2px 6px rgba(0, 0, 0, 0.96);
+    0 1px 0 #000000,
+    0 2px 5px rgba(0, 0, 0, 0.95),
+    0 0 10px rgba(0, 0, 0, 0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .health-value {
-  display: none;
+  display: none !important;
 }
 
 .health-value--infinite {
-  display: none;
+  display: none !important;
 }
 
 .fighter-sub-row {
@@ -544,6 +585,21 @@ body,
   text-shadow:
     0 2px 0 #000,
     0 0 14px rgba(239, 68, 68, 0.9);
+}
+
+.hud-timer-skull {
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 17px;
+  height: 17px;
+  z-index: 3;
+  pointer-events: none;
+  background-color: #cbd5e1;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2C7.6 2 4 5.4 4 9.7c0 2.5 1.2 4.7 3 6.1V19c0 .6.4 1 1 1h1v-2h2v2h2v-2h2v2h1c.6 0 1-.4 1-1v-3.2c1.8-1.4 3-3.6 3-6.1C20 5.4 16.4 2 12 2zm-3 9.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z'/></svg>") center/contain no-repeat;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2C7.6 2 4 5.4 4 9.7c0 2.5 1.2 4.7 3 6.1V19c0 .6.4 1 1 1h1v-2h2v2h2v-2h2v2h1c.6 0 1-.4 1-1v-3.2c1.8-1.4 3-3.6 3-6.1C20 5.4 16.4 2 12 2zm-3 9.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z'/></svg>") center/contain no-repeat;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.9));
 }
 
 /* =========================================================

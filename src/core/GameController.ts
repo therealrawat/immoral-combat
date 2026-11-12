@@ -531,9 +531,6 @@ export class GameController {
     if (this.disposed) return;
 
     const totalRoster = CHARACTER_IDS.length;
-    const extraAvatarIds = CHARACTER_IDS.filter(
-      (id) => id !== this.selectedCharacter && id !== this.opponentCharacter
-    );
     const completedIds = new Set<CharacterId>();
     const bumpRosterProgress = (id: CharacterId) => {
       if (this.disposed || completedIds.has(id)) return;
@@ -551,14 +548,14 @@ export class GameController {
       `Preloading roster avatars (0/${totalRoster}) & showcase models...`
     );
 
-    const [, , extraPortraits] = await Promise.all([
+    const [, , allPortraits] = await Promise.all([
       this.selectStage
         .setFighter('p1', this.selectedCharacter, 'idle-1', false)
         .finally(() => bumpRosterProgress(this.selectedCharacter)),
       this.selectStage
         .setFighter('cpu', this.opponentCharacter, 'idle-1', false)
         .finally(() => bumpRosterProgress(this.opponentCharacter)),
-      this.selectStage.generateFighterPortraits(extraAvatarIds, {
+      this.selectStage.generateFighterPortraits(CHARACTER_IDS, {
         includeIdlePose: false,
         onProgress: (id, url) => {
           if (url && !this.disposed) {
@@ -570,7 +567,7 @@ export class GameController {
     ]);
 
     if (this.disposed) return;
-    this.ui.setFighterPortraits(extraPortraits);
+    this.ui.setFighterPortraits(allPortraits);
     this.ui.setInitialLoaderProgress(95, 'Finalizing fighter avatar thumbnails...');
     await this.ui.waitForRosterPortraitsReady(350);
 
