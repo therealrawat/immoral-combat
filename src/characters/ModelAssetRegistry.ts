@@ -30,6 +30,7 @@ interface SplitModelRegistry {
   sharedCharacters: Map<string, string>;
   sharedAnimations: Map<string, string>;
   stages: Map<string, string>;
+  objects: Map<string, string>;
   legacyByCharacter: Map<string, Record<string, string>>;
 }
 
@@ -37,12 +38,15 @@ interface SplitModelRegistry {
  * Indexes both refactored shared-animation GLBs:
  *   - `models/characters/<character>.glb` (T-pose base meshes)
  *   - `models/animations/<move>.glb` (central skinless animations)
+ *   - `models/stages/<stage>.glb` (3D battle arenas)
+ *   - `models/objects/<object>.glb` (interactive signature/stage props)
  * as well as legacy baked `models/<character>/<character>-<move>.glb` files.
  */
 function buildModelAssetRegistry(): SplitModelRegistry {
   const sharedCharacters = new Map<string, string>();
   const sharedAnimations = new Map<string, string>();
   const stages = new Map<string, string>();
+  const objects = new Map<string, string>();
   const legacyByCharacter = new Map<string, Record<string, string>>();
 
   for (const [rawPath, url] of Object.entries(MODEL_GLOB_URLS)) {
@@ -68,6 +72,11 @@ function buildModelAssetRegistry(): SplitModelRegistry {
       continue;
     }
 
+    if (folderKey === 'objects') {
+      objects.set(fileStem, url);
+      continue;
+    }
+
     const prefix = `${folderKey}-`;
     const moveKey = fileStem.startsWith(prefix) ? fileStem.slice(prefix.length) : fileStem;
     const existing = legacyByCharacter.get(folderKey) ?? {};
@@ -75,7 +84,7 @@ function buildModelAssetRegistry(): SplitModelRegistry {
     legacyByCharacter.set(folderKey, existing);
   }
 
-  return { sharedCharacters, sharedAnimations, stages, legacyByCharacter };
+  return { sharedCharacters, sharedAnimations, stages, objects, legacyByCharacter };
 }
 
 const ASSET_REGISTRY = buildModelAssetRegistry();
@@ -194,6 +203,11 @@ export function getAvailableStageIds(): string[] {
 /** Resolves a stage GLB URL from `models/stages/<stageId>.glb` if indexed by Vite. */
 export function getStageModelUrl(stageId: string): string | undefined {
   return ASSET_REGISTRY.stages.get(stageId.toLowerCase());
+}
+
+/** Resolves a prop/object GLB URL from `models/objects/<objectKey>.glb` if indexed by Vite. */
+export function getObjectModelUrl(objectKey: string): string | undefined {
+  return ASSET_REGISTRY.objects.get(objectKey.toLowerCase());
 }
 
 /** Returns all legacy `<character>-<move>.glb` move URLs keyed by canonical `<move>`. */

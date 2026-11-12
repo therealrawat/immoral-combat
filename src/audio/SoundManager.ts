@@ -547,6 +547,122 @@ export class SoundManager {
     });
   }
 
+  /** Sleek metallic hinge click + cyberpunk terminal boot chime when Priyanshu opens his laptop. */
+  public playCyberLaptopOpen(): void {
+    const ctx = this.canPlay();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    if (this.noiseBuffer) {
+      const click = ctx.createBufferSource();
+      click.buffer = this.noiseBuffer;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(2400, now);
+      bp.Q.setValueAtTime(2.5, now);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.24, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      click.connect(bp);
+      bp.connect(gain);
+      gain.connect(ctx.destination);
+      click.start(now);
+      click.stop(now + 0.065);
+    }
+
+    [440, 659.25, 987.77].forEach((freq, idx) => {
+      const t = now + 0.06 + idx * 0.065;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.085, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.15);
+    });
+  }
+
+  /** Tactile mechanical switch keystroke + faint terminal chirp while typing on the laptop. */
+  public playKeyboardKeystroke(pitchScale = 1): void {
+    const ctx = this.canPlay();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    if (this.noiseBuffer) {
+      const snap = ctx.createBufferSource();
+      snap.buffer = this.noiseBuffer;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(3200 * pitchScale, now);
+      bp.Q.setValueAtTime(3.2, now);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.16, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.032);
+      snap.connect(bp);
+      bp.connect(g);
+      g.connect(ctx.destination);
+      snap.start(now);
+      snap.stop(now + 0.035);
+    }
+
+    const blip = ctx.createOscillator();
+    const bg = ctx.createGain();
+    blip.type = 'square';
+    blip.frequency.setValueAtTime(760 * pitchScale, now);
+    bg.gain.setValueAtTime(0.025, now);
+    bg.gain.exponentialRampToValueAtTime(0.001, now + 0.028);
+    blip.connect(bg);
+    bg.connect(ctx.destination);
+    blip.start(now);
+    blip.stop(now + 0.03);
+  }
+
+  /** Deep execute breach + hissing aerosol poison cloud burst engulfing the opponent. */
+  public playPoisonFogRelease(): void {
+    const ctx = this.canPlay();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const drop = ctx.createOscillator();
+    const dg = ctx.createGain();
+    drop.type = 'sawtooth';
+    drop.frequency.setValueAtTime(520, now);
+    drop.frequency.exponentialRampToValueAtTime(74, now + 0.35);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(1400, now);
+    lp.frequency.exponentialRampToValueAtTime(280, now + 0.36);
+    dg.gain.setValueAtTime(0.24, now);
+    dg.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+    drop.connect(lp);
+    lp.connect(dg);
+    dg.connect(ctx.destination);
+    drop.start(now);
+    drop.stop(now + 0.4);
+
+    if (this.noiseBuffer) {
+      const hiss = ctx.createBufferSource();
+      hiss.buffer = this.noiseBuffer;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(1150, now);
+      bp.frequency.exponentialRampToValueAtTime(420, now + 0.85);
+      bp.Q.setValueAtTime(1.1, now);
+      const hg = ctx.createGain();
+      hg.gain.setValueAtTime(0.02, now);
+      hg.gain.linearRampToValueAtTime(0.32, now + 0.12);
+      hg.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+      hiss.connect(bp);
+      bp.connect(hg);
+      hg.connect(ctx.destination);
+      hiss.start(now);
+      hiss.stop(now + 0.92);
+    }
+  }
+
   public playSpankSlap(isFinale = false): void {
     const ctx = this.canPlay();
     if (!ctx) return;

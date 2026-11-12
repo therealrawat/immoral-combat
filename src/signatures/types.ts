@@ -58,7 +58,10 @@ export interface SignatureMoveContext {
     id: CharacterId,
     percent: number
   ): { restored: number; nextHp: number; maxHp: number };
-  registerTransientDisposable?(item: { dispose(): void }): void;
+  registerTransientDisposable?(item: {
+    dispose(): void;
+    update?: (deltaSec: number) => void;
+  }): void;
   spawnBloodImpact?(
     defenderId: CharacterId,
     attackerId: CharacterId,

@@ -19,6 +19,7 @@ import {
   CINEMATIC_FREEZE_TIME_SCALE,
   executeCharacterSignature,
   getCharacterSignatures,
+  preloadCyberpunkLaptop,
   SignatureMoveContext,
 } from '../signatures';
 import { CharacterSelectStage } from '../ui/CharacterSelectStage';
@@ -27,7 +28,7 @@ import { StageManager, getStageDisplayName } from './ArenaBuilder';
 import { FighterParticipantConfig, GameManager, PlayerSlot } from './GameManager';
 import { SceneManager } from './SceneManager';
 
-const FIGHTER_MAX_HP = 100;
+const FIGHTER_MAX_HP = 500;
 const PUNCH_DAMAGE = 15;
 const DIRECT_KICK_DAMAGE = 22;
 const CPU_PUNCH_DAMAGE = 10;
@@ -251,7 +252,10 @@ export class GameController {
 
   private readonly gameManager: GameManager;
   private activeTimeouts: number[] = [];
-  private readonly transientDisposables = new Set<{ dispose(): void }>();
+  private readonly transientDisposables = new Set<{
+    dispose(): void;
+    update?: (deltaSec: number) => void;
+  }>();
   private koRecoveryTimeoutId: number | null = null;
   private cachedSignatureCtx?: SignatureMoveContext;
   private readonly loadedCombatCharacters = new Set<CharacterId>();
@@ -574,9 +578,12 @@ export class GameController {
         if (this.disposed) return;
         onProgress?.(0.35);
 
-        await this.initCharacterNativeClips(id, targetScene, (completed, total) => {
-          onProgress?.(0.35 + 0.65 * (completed / Math.max(total, 1)));
-        });
+        await Promise.all([
+          this.initCharacterNativeClips(id, targetScene, (completed, total) => {
+            onProgress?.(0.35 + 0.65 * (completed / Math.max(total, 1)));
+          }),
+          id === 'priyanshu' ? preloadCyberpunkLaptop() : Promise.resolve(),
+        ]);
         if (!this.disposed) {
           this.loadedCombatCharacters.add(id);
           onProgress?.(1);
@@ -835,6 +842,9 @@ export class GameController {
     this.updateLocomotionAnimations();
     this.anims.get(this.leftFighterId)?.update(scaledDelta);
     this.anims.get(this.rightFighterId)?.update(scaledDelta);
+    for (const item of this.transientDisposables) {
+      item.update?.(rawDelta);
+    }
     this.physics.step(scaledDelta, this.selectedCharacter);
 
     this.sceneManager.render();
@@ -2123,7 +2133,7 @@ export class GameController {
   }
 
   /**
-   * Priyanshu Turbo Flurry Signature Move (delegated to `src/signatures/priyanshu/`).
+   * Priyanshu Toxic Hack Signature Move (delegated to `src/signatures/priyanshu/`).
    */
   public triggerTurboComboSignature(attackerId: CharacterId, defenderId: CharacterId): void {
     executeCharacterSignature(this.getSignatureContext(), attackerId, defenderId);

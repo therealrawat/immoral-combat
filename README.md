@@ -34,7 +34,7 @@ Immoral Combat is a Tekken-inspired 1v1 browser fighting game featuring a full-3
 
 | Fighter | Display Name | Epithet | Primary Signature (`F`) | Secondary Signature (`G`) | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `priyanshu` | **Priyanshu** | Spirited Challenger (`100 HP`) | **Turbo Flurry** — Rapid 3-hit jab, cross & drop-kick finisher | — | Default Player 1 |
+| `priyanshu` | **Priyanshu** | Spirited Challenger (`100 HP`) | **Toxic Hack** — Opens cyberpunk laptop, types breach script & engulfs opponent in poison fog | — | Default Player 1 |
 | `modiji` | **Modiji** | Vishwaguru (`100 HP`) | **Mitron! Sonic Boom** — Expanding AoE wave that stuns & freezes nearby foes | **Chai Break** — Drinks chai from right hand, glows saffron & heals **+20% HP** | Default Opponent |
 | `trump` | **Pope Grump** | Supreme Pontiff of Pain (`100 HP`) | **You're Fired!** — Launches a glowing fiery decree projectile from the right hand bone | **Build the Wall** — Drops a giant bouncing brick wall smashing back nearby foes | Heavy knockback kit |
 | `putin` | **царь Путин** | Iron Kremlin Strategist (`100 HP`) | **The Long Table** — Extends a 20x white banquet table battering ram knocking opponents away | **Matryoshka Munition** — Nesting doll grenade bouncing & exploding 3 times while halving in scale | Zoning & chain AoE |
@@ -172,7 +172,7 @@ immoral-combat/
     ├── signatures/
     │   ├── index.ts            # Unified per-character signature registry & executor
     │   ├── chinu/              # Boss Spank
-    │   ├── priyanshu/          # Turbo Flurry
+    │   ├── priyanshu/          # Toxic Hack (Cyberpunk Laptop + Poison Fog)
     │   ├── modiji/             # Mitron! Sonic Boom & Chai Break
     │   ├── trump/              # You're Fired! & Build the Wall
     │   └── putin/              # The Long Table & Matryoshka Munition

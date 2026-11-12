@@ -1,7 +1,10 @@
-import { turboFlurrySignature } from './turboFlurry';
+import { poisonHackSignature } from './poisonHack';
 import type { SignatureMoveDefinition } from '../types';
 
-export { turboFlurrySignature };
+export { poisonHackSignature };
+export {
+  CyberpunkPoisonSpecialMove,
+  preloadCyberpunkLaptop,
+} from './CyberpunkPoisonSpecialMove';
 
-export const priyanshuSignatures: readonly SignatureMoveDefinition[] = [turboFlurrySignature];
-
+export const priyanshuSignatures: readonly SignatureMoveDefinition[] = [poisonHackSignature];

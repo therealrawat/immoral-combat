@@ -52,19 +52,19 @@ const SELECT_FIGHTER_STATIC_META: Record<
   },
   priyanshu: {
     epithet: 'Spirited Challenger',
-    metaText: 'CHALLENGER • 100 HP',
+    metaText: 'CHALLENGER • 500 HP',
   },
   modiji: {
     epithet: 'Vishwaguru',
-    metaText: 'VISHWAGURU • 100 HP',
+    metaText: 'VISHWAGURU • 500 HP',
   },
   trump: {
     epithet: 'Supreme Pontiff of Pain',
-    metaText: 'PONTIFF • 100 HP',
+    metaText: 'PONTIFF • 500 HP',
   },
   putin: {
     epithet: 'Iron Kremlin Strategist',
-    metaText: 'STRATEGIST • 100 HP',
+    metaText: 'STRATEGIST • 500 HP',
   },
 };
 
