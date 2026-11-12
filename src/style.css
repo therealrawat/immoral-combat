@@ -307,10 +307,12 @@ body,
 }
 
 .health-bar-label--left {
+  justify-content: flex-start;
   padding: 0 18px 0 32px;
 }
 
 .health-bar-label--right {
+  justify-content: flex-end;
   padding: 0 32px 0 18px;
 }
 
