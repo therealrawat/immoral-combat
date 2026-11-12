@@ -727,6 +727,7 @@ export function createProceduralClips(): Partial<Record<FighterState, THREE.Anim
     HIT_STOMACH: HIT.clone(),
     HIT_BIG: HIT.clone(),
     HIT_LEGS: HIT.clone(),
+    BLOCK: HIT.clone(),
     ATTEMPT_ATTACK,
     FALL_BACK,
     DEAD: FALL_BACK.clone(),

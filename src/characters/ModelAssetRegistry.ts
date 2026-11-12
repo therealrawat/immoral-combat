@@ -294,6 +294,13 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     defaultSpeed: 3.2,
     stripHorizontalRootMotion: true,
   },
+  {
+    state: 'BLOCK',
+    clipSuffix: 'Block',
+    moveKeys: ['body-block', 'block'],
+    defaultSpeed: 2.6,
+    stripHorizontalRootMotion: true,
+  },
 ];
 
 const CHARACTER_SPEC_OVERRIDES: Partial<

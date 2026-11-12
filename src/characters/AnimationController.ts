@@ -21,6 +21,7 @@ const ONE_SHOT_STATES = new Set<FighterState>([
   'HIT_STOMACH',
   'HIT_BIG',
   'HIT_LEGS',
+  'BLOCK',
   'ATTEMPT_ATTACK',
   'FALL_BACK',
   'DEAD',

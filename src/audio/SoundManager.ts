@@ -258,6 +258,48 @@ export class SoundManager {
     });
   }
 
+  /** Solid metallic forearm shield block sound effect with crisp deflection clank & low punch thud. */
+  public playBlockImpact(): void {
+    const ctx = this.canPlay();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // 1. Solid low thud
+    const thud = ctx.createOscillator();
+    const thudGain = ctx.createGain();
+    thud.type = 'triangle';
+    thud.frequency.setValueAtTime(160, now);
+    thud.frequency.exponentialRampToValueAtTime(55, now + 0.12);
+    thudGain.gain.setValueAtTime(0.45, now);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    thud.connect(thudGain);
+    thudGain.connect(ctx.destination);
+    thud.start(now);
+    thud.stop(now + 0.16);
+
+    // 2. High-frequency metallic shield deflection clank
+    const clank = ctx.createOscillator();
+    const clankGain = ctx.createGain();
+    clank.type = 'square';
+    clank.frequency.setValueAtTime(980, now);
+    clank.frequency.exponentialRampToValueAtTime(320, now + 0.08);
+
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(1200, now);
+    bp.Q.setValueAtTime(3.5, now);
+
+    clankGain.gain.setValueAtTime(0.22, now);
+    clankGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+    clank.connect(bp);
+    bp.connect(clankGain);
+    clankGain.connect(ctx.destination);
+    clank.start(now);
+    clank.stop(now + 0.11);
+  }
+
   public playMatSlamAndDizzy(): void {
     const ctx = this.canPlay();
     if (!ctx) return;

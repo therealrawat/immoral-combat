@@ -264,6 +264,7 @@ export class GameController {
     CHARACTER_IDS.map((id) => [id, FIGHTER_MAX_HP])
   );
   private readonly aggressionHits = new Map<CharacterId, number[]>();
+  private readonly blockingFighters = new Set<CharacterId>();
 
   private readonly availableStageIds = getAvailableStageIds();
   private activeStageId = this.availableStageIds[0] ?? 'stage-1';
@@ -368,6 +369,7 @@ export class GameController {
     this.ui = new UIManager(canvas, {
       onPrimaryAction: () => this.handlePrimaryAction(),
       onKickAction: () => this.handleKickAction(),
+      onBlockAction: (isBlocking) => this.handleBlockAction(isBlocking),
       onSignatureAction: () => this.handleSignatureAction(),
       onSecondarySignatureAction: () => this.handleSecondarySignatureAction(),
       onCounterAction: () => this.handleCounterAction(),
@@ -595,7 +597,8 @@ export class GameController {
         finishedState === 'HIT_HEAD' ||
         finishedState === 'HIT_STOMACH' ||
         finishedState === 'HIT_BIG' ||
-        finishedState === 'HIT_LEGS';
+        finishedState === 'HIT_LEGS' ||
+        finishedState === 'BLOCK';
 
       if (isHitVariant || finishedState === 'BLUSH' || finishedState === 'GET_UP') {
         this.physics.setKnockedDown(rig.id, false);
@@ -631,7 +634,11 @@ export class GameController {
         finishedState === 'BLUSH' ||
         finishedState === 'GET_UP'
       ) {
-        anim.transitionTo('IDLE', 0.08);
+        if (this.blockingFighters.has(rig.id)) {
+          anim.transitionTo('BLOCK', 0.05);
+        } else {
+          anim.transitionTo('IDLE', 0.08);
+        }
       }
     });
     this.anims.set(id, anim);
@@ -1421,6 +1428,34 @@ export class GameController {
     this.triggerOpponentStrikeBack(this.opponentCharacter, this.selectedCharacter);
   }
 
+  private handleBlockAction(isPressed: boolean): void {
+    if (this.isCinematicActive || this.gameManager.isControlsLocked()) return;
+    const player = this.selectedCharacter;
+    const anim = this.anims.get(player);
+    if (!anim) return;
+
+    const state = anim.getState();
+    if (state === 'FALL_BACK' || state === 'DEAD' || state === 'GET_UP') return;
+
+    if (isPressed) {
+      this.blockingFighters.add(player);
+      this.physics.setMoveInput(player, 0, 0);
+      this.physics.setLocomotionState(player, false, null);
+      if (state !== 'BLOCK') {
+        anim.transitionTo('BLOCK', 0.05, true);
+      }
+    } else {
+      this.blockingFighters.delete(player);
+      if (anim.getState() === 'BLOCK') {
+        anim.transitionTo('IDLE', 0.08);
+      }
+    }
+  }
+
+  public isFighterBlocking(id: CharacterId): boolean {
+    return this.blockingFighters.has(id) || this.anims.get(id)?.getState() === 'BLOCK';
+  }
+
   private handleHealAction(): void {
     const isChinuPriyanshu =
       (this.leftFighterId === 'chinu' && this.rightFighterId === 'priyanshu') ||
@@ -1546,6 +1581,28 @@ export class GameController {
     this.sceneManager.triggerShake(opts.shakeIntensity, opts.shakeDuration);
   }
 
+  private applyBlockedStrikeHit(
+    defenderId: CharacterId,
+    attackerId: CharacterId,
+    defenderRig: FighterRig,
+    defenderAnim: AnimationController,
+    impactPoint: THREE.Vector3,
+    originalDamage: number,
+    opts: {
+      knockback: number;
+    }
+  ): void {
+    const chipDamage = Math.max(1, Math.round(originalDamage * 0.15));
+    this.physics.setLocomotionState(defenderId, false, null);
+    defenderAnim.transitionTo('BLOCK', 0.04, true);
+    this.physics.applyDirectionalImpulse(defenderId, attackerId, opts.knockback);
+    this.flashTintFeedback(defenderRig, 0x38bdf8, 0.75, 0.2);
+    this.effects.spawnBlockImpact(impactPoint, chipDamage);
+    this.sound.playBlockImpact();
+    this.sceneManager.triggerShake(0.08, 0.12);
+    this.applyDamageToFighter(defenderId, attackerId, chipDamage, false);
+  }
+
   /**
    * Standard Punch or Kick attack from attacker to non-boss defender.
    */
@@ -1605,6 +1662,18 @@ export class GameController {
       if (defenderId === this.opponentCharacter) {
         this.cpuAi.onCpuInterrupted(performance.now(), 750);
       }
+
+      const isBlocked =
+        this.isFighterBlocking(defenderId) ||
+        (defenderId === this.opponentCharacter && this.cpuAi.shouldCpuBlock(this.difficulty));
+
+      if (isBlocked) {
+        this.applyBlockedStrikeHit(defenderId, attackerId, defenderRig, defenderAnim, impactPoint, damage, {
+          knockback: isKick ? -3.2 : -2.0,
+        });
+        return;
+      }
+
       this.applyNonBossStrikeHit(defenderId, attackerId, defenderRig, defenderAnim, impactPoint, damage, {
         knockback: isKick ? -6.6 : -4.4,
         jitter: isKick ? 1.8 : 1.4,
@@ -1687,6 +1756,14 @@ export class GameController {
           );
           this.syncHUD();
         }
+        return;
+      }
+
+      const isBlocked = this.isFighterBlocking(defenderId);
+      if (isBlocked) {
+        this.applyBlockedStrikeHit(defenderId, attackerId, defenderRig, defenderAnim, hit.impactPoint, damage, {
+          knockback: isKick ? -2.6 : -1.8,
+        });
         return;
       }
 
@@ -2271,6 +2348,14 @@ export class GameController {
       const impactPoint = hit
         ? hit.impactPoint
         : defenderRig.root.position.clone().setY(1.45);
+
+      const isBlocked = this.isFighterBlocking(defenderId);
+      if (isBlocked) {
+        this.applyBlockedStrikeHit(defenderId, attackerId, defenderRig, defenderAnim, impactPoint, OPPONENT_STRIKE_DAMAGE, {
+          knockback: -2.4,
+        });
+        return;
+      }
 
       defenderAnim.transitionTo('HIT_STOMACH', 0.04, true);
       this.physics.applyDirectionalImpulse(defenderId, attackerId, -5.2);

@@ -44,6 +44,7 @@ export interface DifficultyProfile {
   signatureUseChance: number;
   signatureReactionMinMs: number;
   signatureReactionMaxMs: number;
+  blockChance: number;
 }
 
 export const DIFFICULTY_PROFILES: Record<DifficultyLevel, DifficultyProfile> = {
@@ -68,6 +69,7 @@ export const DIFFICULTY_PROFILES: Record<DifficultyLevel, DifficultyProfile> = {
     signatureUseChance: 0.55,
     signatureReactionMinMs: 1000,
     signatureReactionMaxMs: 1900,
+    blockChance: 0.12,
   },
   medium: {
     label: 'MEDIUM',
@@ -90,6 +92,7 @@ export const DIFFICULTY_PROFILES: Record<DifficultyLevel, DifficultyProfile> = {
     signatureUseChance: 0.84,
     signatureReactionMinMs: 360,
     signatureReactionMaxMs: 780,
+    blockChance: 0.28,
   },
   hard: {
     label: 'HARD',
@@ -112,6 +115,7 @@ export const DIFFICULTY_PROFILES: Record<DifficultyLevel, DifficultyProfile> = {
     signatureUseChance: 0.96,
     signatureReactionMinMs: 90,
     signatureReactionMaxMs: 260,
+    blockChance: 0.44,
   },
 };
 
@@ -177,6 +181,11 @@ export class CpuAiController {
 
   public getDamageMultiplier(level: DifficultyLevel = this.difficulty): number {
     return DIFFICULTY_PROFILES[level].damageMultiplier;
+  }
+
+  public shouldCpuBlock(difficulty: DifficultyLevel = this.difficulty): boolean {
+    const profile = DIFFICULTY_PROFILES[difficulty] ?? DIFFICULTY_PROFILES.medium;
+    return Math.random() < profile.blockChance;
   }
 
   public reset(nowMs: number, graceDelayMs = 1100): void {

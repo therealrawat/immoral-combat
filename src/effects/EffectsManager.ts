@@ -294,6 +294,19 @@ export class EffectsManager {
     this.spawnShockwave(position, 0xff3b7f, 1.4);
   }
 
+  /** Spawns cyan shield sparks, shockwaves, and comic BLOCKED banner for successful blocks. */
+  public spawnBlockImpact(position: THREE.Vector3, chipDamage = 0): void {
+    this.spawnComicSprite(position, 'BLOCKED! 🛡️', '#38bdf8', 1.85);
+    if (chipDamage > 0) {
+      this.spawnFloatingNumber(position, `-${chipDamage}`, '#93c5fd');
+    } else {
+      this.spawnFloatingNumber(position, 'GUARD!', '#38bdf8');
+    }
+    this.spawnStarBurst(position, 8, 1.1);
+    this.spawnShockwave(position, 0x38bdf8, 1.4);
+    this.spawnShockwave(position, 0xffffff, 0.9);
+  }
+
   public spawnLaserEyeCharge(leftOrigin: THREE.Vector3, rightOrigin: THREE.Vector3): void {
     const origins = [leftOrigin, rightOrigin];
     const orbGeo = new THREE.SphereGeometry(0.038, 16, 12);

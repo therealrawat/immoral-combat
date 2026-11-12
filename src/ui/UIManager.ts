@@ -90,6 +90,7 @@ interface FighterHUDSlotElements {
 export interface UIActionHandlers {
   onPrimaryAction: () => void;
   onKickAction: () => void;
+  onBlockAction?: (isBlocking: boolean) => void;
   onSignatureAction: () => void;
   onSecondarySignatureAction?: () => void;
   onCounterAction: () => void;
@@ -238,6 +239,7 @@ export class UIManager {
   private readonly touchBtnKick = document.getElementById('touch-btn-kick');
   private readonly touchBtnCombo = document.getElementById('touch-btn-combo');
   private readonly touchBtnCounter = document.getElementById('touch-btn-counter');
+  private readonly touchBtnBlock = document.getElementById('touch-btn-block');
   private readonly touchBtnSignature = document.getElementById('touch-btn-signature');
   private readonly touchBtnSpecial = document.getElementById('touch-btn-special');
 
@@ -593,8 +595,28 @@ export class UIManager {
       btn.addEventListener('pointerleave', release);
     };
 
+    const bindHoldTouchButton = (btn: HTMLElement | null, onState: (active: boolean) => void) => {
+      if (!btn) return;
+      const start = (event: PointerEvent) => {
+        event.stopPropagation();
+        event.preventDefault();
+        this.handlers.onUserGesture();
+        btn.classList.add('touch-btn--pressed');
+        onState(true);
+      };
+      const end = () => {
+        btn.classList.remove('touch-btn--pressed');
+        onState(false);
+      };
+      btn.addEventListener('pointerdown', start);
+      btn.addEventListener('pointerup', end);
+      btn.addEventListener('pointercancel', end);
+      btn.addEventListener('pointerleave', end);
+    };
+
     bindTouchButton(this.touchBtnPunch, () => this.handlers.onPrimaryAction());
     bindTouchButton(this.touchBtnKick, () => this.handlers.onKickAction());
+    bindHoldTouchButton(this.touchBtnBlock, (active) => this.handlers.onBlockAction?.(active));
     bindTouchButton(this.touchBtnCombo, () => this.handlers.onMuayThaiAction());
     bindTouchButton(this.touchBtnCounter, () => this.handlers.onCounterAction());
     bindTouchButton(this.touchBtnSignature, () => this.handlers.onSignatureAction());
@@ -1252,6 +1274,12 @@ export class UIManager {
       return;
     }
 
+    if (event.code === 'KeyB') {
+      event.preventDefault();
+      this.handlers.onBlockAction?.(true);
+      return;
+    }
+
     const keyActionMap: Record<string, () => void> = {
       Space: () => this.handlers.onPrimaryAction(),
       KeyK: () => this.handlers.onKickAction(),
@@ -1277,6 +1305,10 @@ export class UIManager {
 
   private readonly handleKeyUp = (event: KeyboardEvent): void => {
     if (this.isModalOpen()) return;
+    if (event.code === 'KeyB') {
+      this.handlers.onBlockAction?.(false);
+      return;
+    }
     if (this.isMovementCode(event.code)) {
       this.pressedKeys.delete(event.code);
       this.emitMovementVector();
@@ -1286,6 +1318,7 @@ export class UIManager {
   private readonly handleWindowBlur = (): void => {
     this.pressedKeys.clear();
     this.resetTouchJoystick();
+    this.handlers.onBlockAction?.(false);
   };
 
   private isMovementCode(code: string): boolean {

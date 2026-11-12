@@ -1856,6 +1856,12 @@ body,
   border-color: rgba(186, 230, 253, 0.55);
 }
 
+.touch-btn--block {
+  background: linear-gradient(155deg, #0284c7, #0369a1);
+  border-color: rgba(125, 211, 252, 0.65);
+  box-shadow: 0 0 12px rgba(14, 165, 233, 0.45);
+}
+
 .touch-btn--combo {
   background: linear-gradient(155deg, #eab308, #854d0e);
   border-color: rgba(254, 240, 138, 0.55);
