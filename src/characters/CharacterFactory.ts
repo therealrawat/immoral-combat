@@ -3,8 +3,6 @@ import { getCharacterDisplayName } from './characterNames';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
-import chinuFaceUrl from '../../chinu.jpeg';
-import priyanshuFaceUrl from '../../priyanshu.jpeg';
 import { extractSkeletonRestProfile, retargetClipToCharacter } from './AnimationRetargeter';
 import { createHumanoidGLBClips } from './GLBClipsBuilder';
 import {
@@ -30,6 +28,33 @@ export interface LoadedNativeGLBClips {
 export interface LoadedCharacterGLBBundle extends LoadedNativeGLBClips {
   scene: THREE.Group;
 }
+
+export const CHINU_PORTRAIT_DATA_URL =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+      <path d="M26 70 C24 24, 104 24, 102 70 C104 95, 92 108, 86 112 L42 112 C36 108, 24 95, 26 70 Z" fill="#2c1d18"/>
+      <ellipse cx="64" cy="64" rx="26" ry="30" fill="#eab38c"/>
+      <path d="M36 52 Q64 26 92 52 Q84 32 64 32 Q44 32 36 52 Z" fill="#2c1d18"/>
+      <rect x="37" y="43" width="54" height="7" rx="3.5" fill="#ff3b7f"/>
+      <circle cx="54" cy="62" r="3" fill="#1e293b"/>
+      <circle cx="74" cy="62" r="3" fill="#1e293b"/>
+      <path d="M56 76 Q64 81 72 76" fill="none" stroke="#9f1239" stroke-width="2.6" stroke-linecap="round"/>
+    </svg>`
+  );
+
+export const PRIYANSHU_PORTRAIT_DATA_URL =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+      <ellipse cx="64" cy="64" rx="26" ry="31" fill="#dca07b"/>
+      <path d="M38 48 Q64 22 90 48 Q84 26 64 25 Q44 26 38 48 Z" fill="#1f1b1a"/>
+      <path d="M40 70 C42 96, 86 96, 88 70 C84 89, 44 89, 40 70 Z" fill="#292524"/>
+      <circle cx="53" cy="60" r="3" fill="#1e293b"/>
+      <circle cx="75" cy="60" r="3" fill="#1e293b"/>
+      <path d="M55 77 H73" fill="none" stroke="#7c2d12" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>`
+  );
 
 export const MODIJI_PORTRAIT_DATA_URL =
   'data:image/svg+xml;utf8,' +
@@ -141,7 +166,7 @@ const CHARACTER_HEIGHT_METERS: Record<CharacterId, number> = {
 const CHARACTER_THEMES: Record<CharacterId, CharacterVisualTheme> = {
   chinu: {
     displayName: getCharacterDisplayName('chinu'),
-    faceUrl: chinuFaceUrl,
+    faceUrl: CHINU_PORTRAIT_DATA_URL,
     shirtColor: 0xff3b7f,
     pantsColor: 0x2b2d42,
     skinColor: 0xe6ad87,
@@ -153,7 +178,7 @@ const CHARACTER_THEMES: Record<CharacterId, CharacterVisualTheme> = {
   },
   priyanshu: {
     displayName: getCharacterDisplayName('priyanshu'),
-    faceUrl: priyanshuFaceUrl,
+    faceUrl: PRIYANSHU_PORTRAIT_DATA_URL,
     shirtColor: 0x2d8cff,
     pantsColor: 0x334155,
     skinColor: 0xdca07b,

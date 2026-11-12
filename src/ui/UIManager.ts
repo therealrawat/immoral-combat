@@ -1,8 +1,8 @@
 import gsap from 'gsap';
-import chinuFaceUrl from '../../chinu.jpeg';
-import priyanshuFaceUrl from '../../priyanshu.jpeg';
 import {
+  CHINU_PORTRAIT_DATA_URL,
   MODIJI_PORTRAIT_DATA_URL,
+  PRIYANSHU_PORTRAIT_DATA_URL,
   PUTIN_PORTRAIT_DATA_URL,
   TRUMP_PORTRAIT_DATA_URL,
 } from '../characters/CharacterFactory';
@@ -32,8 +32,8 @@ import {
 } from '../types/game';
 
 const PORTRAIT_MAP: Record<CharacterId, string> = {
-  chinu: chinuFaceUrl,
-  priyanshu: priyanshuFaceUrl,
+  chinu: CHINU_PORTRAIT_DATA_URL,
+  priyanshu: PRIYANSHU_PORTRAIT_DATA_URL,
   modiji: MODIJI_PORTRAIT_DATA_URL,
   trump: TRUMP_PORTRAIT_DATA_URL,
   putin: PUTIN_PORTRAIT_DATA_URL,

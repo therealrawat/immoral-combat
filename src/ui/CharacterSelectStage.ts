@@ -641,7 +641,7 @@ export class CharacterSelectStage {
     const tuning = config.variants[effectiveVariant];
 
     if (this.options.onPortraitReady && !this.capturedPortraits.has(characterId)) {
-      const portraitUrl = this.capturePortraitFromLoaded(characterId, glbScene, idleClip);
+      const portraitUrl = this.capturePortraitFromLoaded(characterId, glbScene);
       if (portraitUrl) {
         this.options.onPortraitReady(characterId, portraitUrl);
       }
@@ -807,21 +807,25 @@ export class CharacterSelectStage {
         antialias: true,
         preserveDrawingBuffer: true,
       });
-      renderer.setSize(180, 220, false);
+      renderer.setSize(220, 220, false);
+      renderer.setClearColor(0x000000, 0);
+      renderer.localClippingEnabled = true;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.12;
+      renderer.toneMappingExposure = 1.15;
 
       const snapScene = new THREE.Scene();
-      snapScene.background = new THREE.Color(0x0b101d);
+      snapScene.background = null;
 
-      const ambient = new THREE.AmbientLight(0xffffff, 0.85);
-      const key = new THREE.DirectionalLight(0xfffaf0, 1.9);
-      key.position.set(0.6, 2.5, 3.8);
-      const rim = new THREE.DirectionalLight(0x93c5fd, 0.9);
-      rim.position.set(-1.6, 2.2, -2.0);
-      snapScene.add(ambient, key, rim);
+      const ambient = new THREE.AmbientLight(0xffffff, 1.05);
+      const key = new THREE.DirectionalLight(0xfffaf0, 1.85);
+      key.position.set(0.45, 0.85, 3.8);
+      const fill = new THREE.DirectionalLight(0xe0f2fe, 0.8);
+      fill.position.set(-1.8, 0.55, 2.5);
+      const rim = new THREE.DirectionalLight(0xfbbf24, 0.9);
+      rim.position.set(0, 1.8, -2.5);
+      snapScene.add(ambient, key, fill, rim);
 
-      const snapCam = new THREE.PerspectiveCamera(26, 180 / 220, 0.1, 20);
+      const snapCam = new THREE.PerspectiveCamera(24, 1, 0.05, 12);
       this.portraitRenderer = renderer;
       this.portraitScene = snapScene;
       this.portraitCamera = snapCam;
@@ -833,8 +837,7 @@ export class CharacterSelectStage {
 
   private capturePortraitFromLoaded(
     characterId: CharacterId,
-    sourceScene: THREE.Object3D,
-    clip: THREE.AnimationClip | null
+    sourceScene: THREE.Object3D
   ): string | null {
     const existing = this.capturedPortraits.get(characterId);
     if (existing) return existing;
@@ -842,40 +845,85 @@ export class CharacterSelectStage {
     const rig = this.ensurePortraitRenderer();
     if (!rig) return null;
 
+    let holder: THREE.Group | null = null;
     try {
       const cloned = SkeletonUtils.clone(sourceScene);
-      const holder = new THREE.Group();
+      holder = new THREE.Group();
       holder.add(cloned);
       rig.scene.add(holder);
 
-      let mixer: THREE.AnimationMixer | null = null;
-      if (clip) {
-        mixer = new THREE.AnimationMixer(cloned);
-        mixer.clipAction(clip).play();
-        mixer.update(0.2);
-      }
+      // Keep portrait in neutral straight-on rest pose so all fighters face the camera cleanly
       holder.updateMatrixWorld(true);
 
       const headWorld = new THREE.Vector3();
+      const neckWorld = new THREE.Vector3();
       const headBone = cloned.getObjectByName('Head');
+      const neckBone = cloned.getObjectByName('Neck');
+      const fullBounds = new THREE.Box3().setFromObject(holder);
+      const topY = Number.isFinite(fullBounds.max.y) ? fullBounds.max.y : 2.18;
+
       if (headBone) {
         headBone.getWorldPosition(headWorld);
       } else {
-        headWorld.set(0, 1.95, 0);
+        headWorld.set(0, topY - 0.16, 0);
+      }
+      if (neckBone) {
+        neckBone.getWorldPosition(neckWorld);
+      } else {
+        neckWorld.set(headWorld.x, headWorld.y - 0.14, headWorld.z);
       }
 
-      rig.camera.position.set(headWorld.x, headWorld.y + 0.01, 1.25);
-      rig.camera.lookAt(headWorld.x, headWorld.y - 0.01, 0);
-      rig.renderer.render(rig.scene, rig.camera);
+      // Slice cleanly right under the jaw / upper neck so only the 3D GLB head floats above the HUD
+      const cutY = THREE.MathUtils.lerp(neckWorld.y, headWorld.y, 0.36);
+      const spanY = THREE.MathUtils.clamp(topY - cutY, 0.24, 0.52);
+      const centerY = (cutY + topY) * 0.5;
+      const halfFovRad = THREE.MathUtils.degToRad(rig.camera.fov * 0.5);
+      const distance = (spanY * 0.58) / Math.tan(halfFovRad);
 
-      const dataUrl = rig.renderer.domElement.toDataURL('image/png');
-      mixer?.stopAllAction();
-      rig.scene.remove(holder);
+      rig.camera.position.set(headWorld.x, centerY, headWorld.z + distance);
+      rig.camera.lookAt(headWorld.x, centerY, headWorld.z);
+
+      const neckClipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -cutY);
+      rig.renderer.clippingPlanes = [neckClipPlane];
+      rig.renderer.clear();
+      rig.renderer.render(rig.scene, rig.camera);
+      rig.renderer.clippingPlanes = [];
+
+      const dataUrl = this.featherPortraitBottomEdge(rig.renderer.domElement);
       this.capturedPortraits.set(characterId, dataUrl);
       return dataUrl;
     } catch {
+      rig.renderer.clippingPlanes = [];
       return null;
+    } finally {
+      if (holder) {
+        rig.scene.remove(holder);
+      }
     }
+  }
+
+  private featherPortraitBottomEdge(sourceCanvas: HTMLCanvasElement): string {
+    if (typeof document !== 'undefined') {
+      const w = sourceCanvas.width || 220;
+      const h = sourceCanvas.height || 220;
+      const out = document.createElement('canvas');
+      out.width = w;
+      out.height = h;
+      const ctx = out.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(sourceCanvas, 0, 0);
+        // Must fill the entire (0, 0, w, h) rect for destination-in so 0..86% head stays opaque
+        ctx.globalCompositeOperation = 'destination-in';
+        const fade = ctx.createLinearGradient(0, 0, 0, h);
+        fade.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        fade.addColorStop(0.86, 'rgba(0, 0, 0, 1)');
+        fade.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = fade;
+        ctx.fillRect(0, 0, w, h);
+        return out.toDataURL('image/png');
+      }
+    }
+    return sourceCanvas.toDataURL('image/png');
   }
 
   /**
@@ -922,7 +970,7 @@ export class CharacterSelectStage {
         options.onProgress?.(item.id, null);
         continue;
       }
-      const dataUrl = this.capturePortraitFromLoaded(item.id, item.scene, item.clip);
+      const dataUrl = this.capturePortraitFromLoaded(item.id, item.scene);
       if (dataUrl) {
         results[item.id] = dataUrl;
       }

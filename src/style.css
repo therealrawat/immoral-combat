@@ -70,167 +70,142 @@ body,
 }
 
 /* =========================================================
-   TOP HEALTH BARS & CHARACTER SWITCHER
+   TOP LIFE METERS & SPIKED IRON MEDALLION (MK REALISTIC HUD)
    ========================================================= */
 .hud-top {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: start;
-  gap: 16px;
+  gap: 0;
   width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
+  max-width: 1340px;
+  margin: 2px auto 0;
+  padding-top: 4px;
 }
 
 .fighter-hud {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 3px solid var(--comic-ink);
-  border-radius: 16px;
-  padding: 10px 14px;
-  box-shadow: 0 6px 0 var(--comic-ink);
+  align-items: flex-start;
+  gap: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
   pointer-events: auto;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.fighter-hud--is-player {
-  box-shadow: 0 6px 0 var(--comic-ink), 0 0 0 4px var(--boss-gold);
+  min-width: 0;
 }
 
 .fighter-avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  border: 3px solid var(--comic-ink);
-  display: grid;
-  place-items: center;
-  font-family: var(--font-display);
-  font-size: 32px;
-  color: #fff;
+  position: relative;
+  top: -6px;
+  width: 78px;
+  height: 78px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  overflow: hidden;
-  box-shadow: 0 3px 0 var(--comic-ink);
+  overflow: visible;
+  z-index: 8;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.fighter-hud--left .fighter-avatar {
+  margin-right: -22px;
+}
+
+.fighter-hud--right .fighter-avatar {
+  margin-left: -22px;
 }
 
 .avatar-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center 40%;
+  object-fit: contain;
+  object-position: center bottom;
   display: block;
+  filter:
+    drop-shadow(0 5px 10px rgba(0, 0, 0, 0.92))
+    drop-shadow(0 0 2px rgba(255, 255, 255, 0.25));
 }
 
-.fighter-avatar--chinu {
-  background: linear-gradient(135deg, #ff5e99, var(--chinu-pink-dark));
+.fighter-hud--is-player .avatar-img {
+  filter:
+    drop-shadow(0 5px 10px rgba(0, 0, 0, 0.95))
+    drop-shadow(0 0 8px rgba(250, 204, 21, 0.45));
 }
 
-.fighter-avatar--priyanshu {
-  background: linear-gradient(135deg, #4da6ff, var(--priyanshu-blue-dark));
-}
-
-.fighter-avatar--modiji {
-  background: linear-gradient(135deg, #fb923c, var(--modiji-saffron-dark));
-}
-
-.fighter-avatar--trump {
-  background: linear-gradient(135deg, #fde047, #d97706);
-}
-
+.fighter-avatar--chinu,
+.fighter-avatar--priyanshu,
+.fighter-avatar--modiji,
+.fighter-avatar--trump,
 .fighter-avatar--putin {
-  background: linear-gradient(135deg, #ef4444, #991b1b);
+  background: transparent;
 }
 
 .fighter-info {
   flex: 1;
   min-width: 0;
+  padding-top: 8px;
 }
 
-.fighter-name-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
+.health-bar-bezel {
+  position: relative;
+  padding: 3px 4px;
+  background: linear-gradient(
+    180deg,
+    #f1f5f9 0%,
+    #94a3b8 14%,
+    #475569 44%,
+    #1e293b 76%,
+    #cbd5e1 100%
+  );
+  box-shadow:
+    0 5px 14px rgba(0, 0, 0, 0.85),
+    0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
-.fighter-name-row--right {
-  justify-content: flex-end;
+.health-bar-bezel--left {
+  clip-path: polygon(20px 0, 100% 0, 100% 100%, 0 100%);
+  padding-right: 16px;
 }
 
-.fighter-name {
-  font-family: var(--font-display);
-  font-size: 24px;
-  letter-spacing: 1px;
-  color: var(--comic-ink);
-  line-height: 1;
-}
-
-.fighter-tag {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 2px solid var(--comic-ink);
-  text-transform: uppercase;
-}
-
-.fighter-tag--boss {
-  background: var(--boss-gold);
-  color: var(--comic-ink);
-}
-
-.fighter-tag--target {
-  background: #e2e8f0;
-  color: var(--comic-ink);
-}
-
-.active-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #10b981;
-  color: #fff;
-  border: 2px solid var(--comic-ink);
-  letter-spacing: 0.4px;
+.health-bar-bezel--right {
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 100%, 0 100%);
+  padding-left: 16px;
 }
 
 .health-bar-track {
   position: relative;
   height: 26px;
-  background: linear-gradient(180deg, #0b0f1a 0%, #171e2e 100%);
-  border: 3px solid var(--comic-ink);
-  border-radius: 5px;
+  background: linear-gradient(180deg, #05070b 0%, #0f131b 52%, #06080d 100%);
+  border: 1px solid rgba(15, 23, 42, 0.95);
   overflow: hidden;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8), 0 3px 0 rgba(0, 0, 0, 0.45);
+  box-shadow:
+    inset 0 3px 7px rgba(0, 0, 0, 0.95),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.14);
 }
 
 .health-bar-track--left {
-  transform: skewX(-18deg);
-}
-
-.health-bar-track--left .health-value {
-  transform: skewX(18deg);
+  clip-path: polygon(16px 0, 100% 0, 100% 100%, 0 100%);
 }
 
 .health-bar-track--right {
-  transform: skewX(18deg);
-}
-
-.health-bar-track--right .health-value {
-  transform: skewX(-18deg);
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 100%, 0 100%);
 }
 
 .health-bar-track--infinite {
-  background: #381024;
+  background: linear-gradient(180deg, #1b0a0d 0%, #2a1014 55%, #120608 100%);
 }
 
 .health-bar-trail {
   position: absolute;
   inset: 0 auto 0 0;
-  background: linear-gradient(90deg, #dc2626, #ef4444);
+  background: linear-gradient(90deg, rgba(127, 29, 29, 0.35) 0%, #b91c1c 55%, #f87171 100%);
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.85);
 }
 
 .health-bar-fill {
@@ -238,7 +213,7 @@ body,
   inset: 0 auto 0 0;
 }
 
-/* Health bars drain toward the center timer (Tekken style) */
+/* Health bars drain toward the center timer (MK / Tekken style) */
 .fighter-hud--left .health-bar-trail,
 .fighter-hud--left .health-bar-fill {
   left: auto;
@@ -251,66 +226,223 @@ body,
   right: auto;
 }
 
+.fighter-hud--right .health-bar-trail {
+  background: linear-gradient(270deg, rgba(127, 29, 29, 0.35) 0%, #b91c1c 55%, #f87171 100%);
+}
+
 .health-bar-fill--infinite {
   background: linear-gradient(
     90deg,
-    #ff3b7f 0%,
-    #ff87b2 35%,
-    #ffd426 50%,
-    #ff87b2 65%,
-    #ff3b7f 100%
+    #b45309 0%,
+    #facc15 24%,
+    #fef08a 50%,
+    #facc15 76%,
+    #b45309 100%
   );
   background-size: 200% 100%;
-  animation: infiniteShimmer 2.4s linear infinite;
+  animation: infiniteShimmer 3s linear infinite;
 }
 
 .health-bar-fill--priyanshu {
-  background: linear-gradient(90deg, #ea580c 0%, #f59e0b 45%, #fde047 100%);
+  background: linear-gradient(
+    180deg,
+    #ecfccb 0%,
+    #84cc16 14%,
+    #52b81f 48%,
+    #2a780b 84%,
+    #143d04 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .fighter-hud--right .health-bar-fill--priyanshu {
-  background: linear-gradient(270deg, #ea580c 0%, #f59e0b 45%, #fde047 100%);
+  background: linear-gradient(
+    180deg,
+    #ecfccb 0%,
+    #84cc16 14%,
+    #52b81f 48%,
+    #2a780b 84%,
+    #143d04 100%
+  );
 }
 
 .health-bar-fill--low {
-  background: linear-gradient(90deg, #dc2626, #fb7185);
+  background: linear-gradient(
+    180deg,
+    #fecaca 0%,
+    #ef4444 18%,
+    #b91c1c 56%,
+    #7f1d1d 90%,
+    #450a0a 100%
+  );
 }
 
-/* Two circular round-win indicators below each health bar */
+.health-bar-sheen {
+  position: absolute;
+  inset: 0 0 52% 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.03) 100%);
+}
+
+.health-bar-label {
+  position: relative;
+  z-index: 4;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.health-bar-label--left {
+  padding: 0 18px 0 32px;
+}
+
+.health-bar-label--right {
+  padding: 0 32px 0 18px;
+}
+
+.fighter-name {
+  font-family: var(--font-arcade);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: #f8fafc;
+  text-transform: uppercase;
+  line-height: 1;
+  text-shadow:
+    0 1px 2px #000000,
+    0 2px 6px rgba(0, 0, 0, 0.96);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.health-value {
+  display: none;
+}
+
+.health-value--infinite {
+  display: none;
+}
+
+.fighter-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 3px;
+  padding: 0 4px;
+}
+
+.fighter-sub-row--left {
+  padding-left: 26px;
+  padding-right: 14px;
+}
+
+.fighter-sub-row--right {
+  padding-left: 14px;
+  padding-right: 26px;
+}
+
+.fighter-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fighter-badges--right {
+  justify-content: flex-end;
+}
+
+.fighter-tag {
+  font-family: var(--font-arcade);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 1px 7px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px #000;
+}
+
+.fighter-tag--boss {
+  background: rgba(180, 83, 9, 0.72);
+  border-color: rgba(250, 204, 21, 0.55);
+  color: #fef08a;
+}
+
+.fighter-tag--target {
+  background: rgba(15, 23, 42, 0.7);
+  color: #cbd5e1;
+}
+
+.active-badge {
+  font-family: var(--font-arcade);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 1px 7px;
+  border-radius: 3px;
+  background: rgba(21, 128, 61, 0.78);
+  color: #dcfce7;
+  border: 1px solid rgba(134, 239, 172, 0.55);
+  text-shadow: 0 1px 2px #000;
+}
+
+/* MK-style skull round-win indicators tucked below inner edge of each bar */
 .round-pips {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: 6px;
+  margin-top: 0;
 }
 
 .round-pips--left {
   justify-content: flex-end;
-  padding-right: 4px;
 }
 
 .round-pips--right {
   justify-content: flex-start;
-  padding-left: 4px;
 }
 
 .round-pip {
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #334155 0%, #0f172a 75%);
-  border: 2.5px solid #94a3b8;
-  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.8), 0 2px 0 rgba(0, 0, 0, 0.55);
+  position: relative;
+  background: radial-gradient(circle at 38% 35%, #374151 0%, #111827 78%);
+  border: 1.5px solid #6b7280;
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.9),
+    0 2px 4px rgba(0, 0, 0, 0.8);
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.round-pip::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background-color: rgba(203, 213, 225, 0.32);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2C7.6 2 4 5.4 4 9.7c0 2.5 1.2 4.7 3 6.1V19c0 .6.4 1 1 1h1v-2h2v2h2v-2h2v2h1c.6 0 1-.4 1-1v-3.2c1.8-1.4 3-3.6 3-6.1C20 5.4 16.4 2 12 2zm-3 9.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z'/></svg>") center/contain no-repeat;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2C7.6 2 4 5.4 4 9.7c0 2.5 1.2 4.7 3 6.1V19c0 .6.4 1 1 1h1v-2h2v2h2v-2h2v2h1c.6 0 1-.4 1-1v-3.2c1.8-1.4 3-3.6 3-6.1C20 5.4 16.4 2 12 2zm-3 9.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z'/></svg>") center/contain no-repeat;
+}
+
 .round-pip--won {
-  background: radial-gradient(circle at 35% 30%, #fef08a 0%, #f59e0b 65%, #b45309 100%);
-  border-color: #fffbeb;
+  background: radial-gradient(circle at 35% 30%, #fef08a 0%, #d97706 60%, #7f1d1d 100%);
+  border-color: #fde68a;
   box-shadow:
     0 0 10px rgba(250, 204, 21, 0.9),
-    0 0 18px rgba(245, 158, 11, 0.55),
-    0 2px 0 #171923;
+    0 0 18px rgba(220, 38, 38, 0.65),
+    0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+.round-pip--won::after {
+  background-color: #fffbeb;
 }
 
 @keyframes infiniteShimmer {
@@ -322,67 +454,84 @@ body,
   }
 }
 
-.health-value {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-  letter-spacing: 0.5px;
-}
-
-.health-value--infinite {
-  color: #fffbe6;
-}
-
 /* =========================================================
-   CENTER VS + COMBO + CHARACTER SWITCHER
+   CENTER SPIKED STEEL TIMER MEDALLION
    ========================================================= */
 .hud-center {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  margin: -5px -10px 0;
+  z-index: 9;
   pointer-events: auto;
 }
 
 .hud-timer-frame {
-  min-width: 78px;
-  height: 54px;
+  position: relative;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  padding: 2px 14px;
-  background: linear-gradient(180deg, #0f172a 0%, #020617 100%);
-  border: 3px solid #f8fafc;
-  border-radius: 12px;
+  background: radial-gradient(circle at 50% 34%, #272d38 0%, #0d1016 68%, #040507 100%);
+  border: 3px solid #cbd5e1;
   box-shadow:
-    0 5px 0 var(--comic-ink),
-    0 0 18px rgba(15, 23, 42, 0.75);
+    inset 0 2px 6px rgba(255, 255, 255, 0.28),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.95),
+    0 0 0 2px #1e293b,
+    0 5px 16px rgba(0, 0, 0, 0.9);
+}
+
+.hud-timer-spikes {
+  position: absolute;
+  inset: -11px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, #e2e8f0 0%, #64748b 55%, #1e293b 100%);
+  clip-path: polygon(
+    50% 0%,
+    56% 18%,
+    78% 12%,
+    74% 32%,
+    96% 42%,
+    82% 56%,
+    92% 76%,
+    72% 74%,
+    64% 88%,
+    50% 100%,
+    36% 88%,
+    28% 74%,
+    8% 76%,
+    18% 56%,
+    4% 42%,
+    26% 32%,
+    22% 12%,
+    44% 18%
+  );
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.9));
 }
 
 .hud-timer {
+  position: relative;
+  z-index: 2;
   font-family: var(--font-arcade);
-  font-style: italic;
-  font-size: 42px;
+  font-style: normal;
+  font-size: 38px;
   font-weight: 800;
-  line-height: 0.9;
-  letter-spacing: 2px;
+  line-height: 0.95;
+  letter-spacing: 0.5px;
   color: #f8fafc;
   text-shadow:
     0 2px 0 #000,
-    0 0 12px rgba(250, 204, 21, 0.45);
+    0 3px 8px rgba(0, 0, 0, 0.95);
 }
 
 .hud-timer--danger {
-  color: #fb7185;
+  color: #f87171;
   text-shadow:
     0 2px 0 #000,
-    0 0 16px rgba(244, 63, 94, 0.85);
+    0 0 14px rgba(239, 68, 68, 0.9);
 }
 
 /* =========================================================
@@ -1258,9 +1407,11 @@ body,
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center 22%;
+  padding: 6px 4px 18px;
+  object-fit: contain;
+  object-position: center 35%;
   display: block;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.85));
 }
 
 .roster-tile--random {
@@ -1366,8 +1517,47 @@ body,
 
 @media (max-width: 820px) {
   .hud-top {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0;
+  }
+
+  .fighter-avatar {
+    top: -2px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .fighter-hud--left .fighter-avatar {
+    margin-right: -12px;
+  }
+
+  .fighter-hud--right .fighter-avatar {
+    margin-left: -12px;
+  }
+
+  .health-bar-track {
+    height: 21px;
+  }
+
+  .fighter-name {
+    font-size: 13px;
+  }
+
+  .health-value {
+    display: none;
+  }
+
+  .hud-center {
+    margin: -3px -7px 0;
+  }
+
+  .hud-timer-frame {
+    width: 48px;
+    height: 48px;
+  }
+
+  .hud-timer {
+    font-size: 26px;
   }
 
   .select-nameplate-row {

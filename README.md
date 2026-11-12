@@ -136,7 +136,6 @@ immoral-combat/
 ├── package.json                # Dependencies (three, gsap, vite, typescript) & npm scripts
 ├── tsconfig.json               # Strict TypeScript compiler configuration
 ├── vite.config.ts              # Vite config + server-side .env salted SHA-256 key hashing
-├── chinu.jpeg / priyanshu.jpeg # Fighter HUD portraits
 ├── models/                     # Auto-discovered GLB 3D characters, animations & arena stages
 │   ├── chinu/                  # Chinu avatar, body & animation GLBs
 │   ├── modiji/                 # Modiji avatar, body & animation GLBs
