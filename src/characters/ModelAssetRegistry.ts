@@ -179,12 +179,14 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     clipSuffix: 'Idle',
     moveKeys: ['warrior-idle', 'breathing-idle', 'neutral-idle', 'happy-idle', 'idle-1', 'idle'],
     defaultSpeed: 1.0,
+    stripHorizontalRootMotion: true,
   },
   {
     state: 'RUN',
     clipSuffix: 'Run',
     moveKeys: ['running', 'run', 'run-to-rolling'],
-    defaultSpeed: 1.0,
+    defaultSpeed: 0.95,
+    stripHorizontalRootMotion: true,
   },
   {
     state: 'ENTRY',
@@ -207,30 +209,35 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     clipSuffix: 'Punch',
     moveKeys: ['punching', 'hook-punch', 'quad-punch', 'elbow-punching', 'punch'],
     defaultSpeed: 2.35,
+    stripHorizontalRootMotion: true,
   },
   {
     state: 'KICK',
     clipSuffix: 'Kick',
     moveKeys: ['kicking', 'mma-kick', 'flying-kick', 'kick-to-the-groin', 'kick'],
     defaultSpeed: 2.1,
+    stripHorizontalRootMotion: true,
   },
   {
     state: 'MUAY_THAI',
     clipSuffix: 'MuayThai',
     moveKeys: ['quad-punch', 'mma-kick', 'elbow-punching', 'flying-kick', 'kick-punch-mix', 'muay-thai'],
     defaultSpeed: 1.8,
+    stripHorizontalRootMotion: true,
   },
   {
     state: 'POSE',
     clipSuffix: 'Pose',
     moveKeys: ['victory', 'rallying', 'cheering', 'clapping', 'excited', 'cheer-1', 'pose'],
-    defaultSpeed: 1.35,
+    defaultSpeed: 1.25,
+    stripHorizontalRootMotion: true,
   },
   {
     state: 'DANCE',
     clipSuffix: 'Dance',
     moveKeys: ['trump-dance', 'excited', 'cheering', 'victory', 'cheer-2', 'dance'],
-    defaultSpeed: 1.3,
+    defaultSpeed: 1.25,
+    stripHorizontalRootMotion: true,
   },
   {
     state: 'LASER_EYES',
@@ -243,12 +250,14 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     clipSuffix: 'Dead',
     moveKeys: ['dead-animation', 'dead', 'death', 'ko'],
     defaultSpeed: 1.0,
+    stripHorizontalRootMotion: true,
   },
   {
     state: 'KISS',
     clipSuffix: 'Kiss',
     moveKeys: ['kiss', 'kiss-1'],
     defaultSpeed: 1.0,
+    stripHorizontalRootMotion: true,
   },
 ];
 
@@ -344,7 +353,7 @@ export const CHARACTER_IDLE_VARIANTS: Record<
     'idle-2': ['breathing-idle'],
   },
   priyanshu: {
-    'idle-1': ['happy-idle'],
+    'idle-1': ['breathing-idle'],
     'idle-2': ['warrior-idle'],
   },
   modiji: {

@@ -4,8 +4,8 @@ import { RING_HALF_WIDTH } from '../core/ArenaBuilder';
 
 const RING_CLAMP_LIMIT = RING_HALF_WIDTH - 0.52;
 const GROUND_FRICTION = 7.6;
-const MOVE_SPEED = 1.7;
-const RUN_SPEED = 2.45;
+const MOVE_SPEED = 1.35;
+const RUN_SPEED = 1.85;
 
 export type RopeBounceHandler = (id: CharacterId, impactPos: THREE.Vector3) => void;
 
