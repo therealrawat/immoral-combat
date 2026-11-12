@@ -590,11 +590,14 @@ export class GameController {
     this.physics.registerFighter(rig);
 
     const anim = new AnimationController(rig, (finishedState) => {
-      if (
+      const isHitVariant =
         finishedState === 'HIT' ||
-        finishedState === 'BLUSH' ||
-        finishedState === 'GET_UP'
-      ) {
+        finishedState === 'HIT_HEAD' ||
+        finishedState === 'HIT_STOMACH' ||
+        finishedState === 'HIT_BIG' ||
+        finishedState === 'HIT_LEGS';
+
+      if (isHitVariant || finishedState === 'BLUSH' || finishedState === 'GET_UP') {
         this.physics.setKnockedDown(rig.id, false);
       }
       if (
@@ -603,7 +606,7 @@ export class GameController {
         finishedState === 'DANCE' ||
         finishedState === 'CHAMP_POSE' ||
         finishedState === 'ENTRY' ||
-        finishedState === 'HIT'
+        isHitVariant
       ) {
         this.physics.setLocomotionState(rig.id, false, null);
       }
@@ -624,7 +627,7 @@ export class GameController {
         finishedState === 'CHAMP_POSE' ||
         finishedState === 'ENTRY' ||
         finishedState === 'KISS' ||
-        finishedState === 'HIT' ||
+        isHitVariant ||
         finishedState === 'BLUSH' ||
         finishedState === 'GET_UP'
       ) {
@@ -1514,10 +1517,21 @@ export class GameController {
       comboNote: number;
       shakeIntensity: number;
       shakeDuration: number;
+      hitType?: 'head' | 'stomach' | 'body' | 'big' | 'legs';
     }
   ): void {
     this.physics.setLocomotionState(defenderId, false, null);
-    defenderAnim.transitionTo('HIT', 0.04, true);
+    const targetHitState: FighterState =
+      opts.hitType === 'head'
+        ? 'HIT_HEAD'
+        : opts.hitType === 'stomach'
+        ? 'HIT_STOMACH'
+        : opts.hitType === 'big'
+        ? 'HIT_BIG'
+        : opts.hitType === 'legs'
+        ? 'HIT_LEGS'
+        : 'HIT';
+    defenderAnim.transitionTo(targetHitState, 0.04, true);
     this.physics.applyDirectionalImpulse(
       defenderId,
       attackerId,
@@ -1598,6 +1612,7 @@ export class GameController {
         comboNote: this.comboHits + (isKick ? 3 : 1),
         shakeIntensity: isKick ? 0.2 : 0.14,
         shakeDuration: isKick ? 0.26 : 0.2,
+        hitType: isKick ? 'stomach' : 'head',
       });
 
       this.recordHitQuip(defenderId);
@@ -1682,6 +1697,7 @@ export class GameController {
         comboNote: isKick ? 3 : 1,
         shakeIntensity: isKick ? 0.16 : 0.11,
         shakeDuration: 0.18,
+        hitType: isKick ? 'stomach' : 'head',
       });
 
       if (this.canShowCpuQuip()) {
@@ -2161,7 +2177,7 @@ export class GameController {
       // Combo Strike 1
       this.scheduleUnscaled(() => {
         const hitPos = targetRig.root.position.clone().setY(1.52);
-        targetAnim.transitionTo('HIT', 0.04, true);
+        targetAnim.transitionTo('HIT_HEAD', 0.04, true);
         this.sound.playPunchHit(this.comboHits + 1);
         this.effects.spawnPunchImpact(hitPos, timing.hit1Damage, 'POW!');
         this.maybeSpawnCombatBlood(targetId, attackerId, hitPos, timing.hit1Damage);
@@ -2175,7 +2191,7 @@ export class GameController {
         this.physics.applyDirectionalImpulse(attackerId, targetId, 2.6);
         this.sound.playWhoosh(1.1);
         const hitPos = targetRig.root.position.clone().setY(1.48);
-        targetAnim.transitionTo('HIT', 0.04, true);
+        targetAnim.transitionTo('HIT_STOMACH', 0.04, true);
         this.sound.playPunchHit(this.comboHits + 2);
         this.effects.spawnPunchImpact(hitPos, timing.hit2Damage, 'BAM!!');
         this.maybeSpawnCombatBlood(targetId, attackerId, hitPos, timing.hit2Damage, 0.25);
@@ -2256,7 +2272,7 @@ export class GameController {
         ? hit.impactPoint
         : defenderRig.root.position.clone().setY(1.45);
 
-      defenderAnim.transitionTo('HIT', 0.04, true);
+      defenderAnim.transitionTo('HIT_STOMACH', 0.04, true);
       this.physics.applyDirectionalImpulse(defenderId, attackerId, -5.2);
       this.flashTintFeedback(defenderRig, 0xffd426, 0.8, 0.24);
       this.wobbleHeadOnImpact(defenderRig);

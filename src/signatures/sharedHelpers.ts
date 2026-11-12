@@ -165,7 +165,7 @@ export function executeThreeHitFinisher(
 
     ctx.scheduleUnscaled(() => {
       const hit1Pos = defenderRig.root.position.clone().setY(1.52);
-      defenderAnim.transitionTo('HIT', 0.04, true);
+      defenderAnim.transitionTo('HIT_HEAD', 0.04, true);
       ctx.sound.playPunchHit(ctx.getComboHits() + 1);
       ctx.effects.spawnPunchImpact(hit1Pos, cfg.hit1Damage, cfg.hit1Label);
       ctx.spawnBloodImpact?.(defenderId, attackerId, hit1Pos, cfg.hit1Damage);
@@ -183,7 +183,7 @@ export function executeThreeHitFinisher(
 
     ctx.scheduleUnscaled(() => {
       const hit2Pos = defenderRig.root.position.clone().setY(1.48);
-      defenderAnim.transitionTo('HIT', 0.04, true);
+      defenderAnim.transitionTo('HIT_STOMACH', 0.04, true);
       ctx.sound.playPunchHit(ctx.getComboHits() + 2);
       ctx.effects.spawnPunchImpact(hit2Pos, cfg.hit2Damage, cfg.hit2Label);
       ctx.spawnBloodImpact?.(defenderId, attackerId, hit2Pos, cfg.hit2Damage, 0.25);

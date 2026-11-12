@@ -17,6 +17,10 @@ const ONE_SHOT_STATES = new Set<FighterState>([
   'BLUSH',
   'LASER_EYES',
   'HIT',
+  'HIT_HEAD',
+  'HIT_STOMACH',
+  'HIT_BIG',
+  'HIT_LEGS',
   'ATTEMPT_ATTACK',
   'FALL_BACK',
   'DEAD',
@@ -163,16 +167,28 @@ export class AnimationController {
     fadeDuration = 0.08,
     restartIfSame = false
   ): void {
-    if (nextState === this.currentState && !restartIfSame) {
+    let resolvedState = nextState;
+    let nextAction = this.actions.get(resolvedState);
+    if (
+      !nextAction &&
+      (resolvedState === 'HIT_HEAD' ||
+        resolvedState === 'HIT_STOMACH' ||
+        resolvedState === 'HIT_BIG' ||
+        resolvedState === 'HIT_LEGS')
+    ) {
+      resolvedState = 'HIT';
+      nextAction = this.actions.get(resolvedState);
+    }
+
+    if (resolvedState === this.currentState && !restartIfSame) {
       return;
     }
 
     const prevAction = this.actions.get(this.currentState);
-    const nextAction = this.actions.get(nextState);
     if (!nextAction) return;
 
     nextAction.enabled = true;
-    const speed = this.clipSpeeds.get(nextState) ?? 1;
+    const speed = this.clipSpeeds.get(resolvedState) ?? 1;
     nextAction.setEffectiveTimeScale(speed);
     nextAction.setEffectiveWeight(1);
     nextAction.reset();
@@ -183,7 +199,7 @@ export class AnimationController {
       prevAction.crossFadeTo(nextAction, fadeDuration, false);
     }
 
-    this.currentState = nextState;
+    this.currentState = resolvedState;
   }
 
   public update(deltaSeconds: number): void {
