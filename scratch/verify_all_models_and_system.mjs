@@ -34,7 +34,7 @@ const expectedCategories = {
   'Idle': ['Breathing Idle.glb', 'Happy Idle.glb', 'Neutral Idle.glb', 'Sad Idle.glb', 'Warrior Idle.glb'],
   'Kick': ['Flying Kick.glb', 'Kick To The Groin.glb', 'Kicking.glb', 'Mma Kick (1).glb', 'Mma Kick.glb'],
   'Kiss': ['Kiss (1).glb', 'Kiss.glb'],
-  'Punch': ['Elbow Punching.glb', 'Hook Punch.glb', 'Picking Up.glb', 'Punching.glb', 'Quad Punch.glb'],
+  'Punch': ['Elbow Punching.glb', 'Hook Punch.glb', 'Picking Up.glb', 'Punching.glb', 'Quad Punch.glb', 'mix-kick-punch.glb'],
   'Run': ['Run To Rolling.glb', 'Running (1).glb', 'Running Backward.glb', 'Running.glb'],
   'Walk': ['Female-Walking.glb', 'Fight-Walking.glb', 'Walking.glb'],
 };
