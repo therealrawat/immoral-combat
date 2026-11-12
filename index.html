@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Immoral Combat — 3D Stress-Relief Fighter</title>
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥊</text></svg>" />
@@ -232,6 +232,46 @@
         </div>
       </div>
 
+      <!-- Mobile-First Touch Overlay: Left Floating Virtual Joystick + Right Combat Zones & Buttons -->
+      <div class="touch-controls-overlay" id="touch-controls-overlay" aria-label="Touch Controls">
+        <div class="touch-zone touch-zone--left" id="touch-zone-move" aria-label="Movement Joystick Zone">
+          <div class="touch-joystick-base hidden" id="touch-joystick-base" aria-hidden="true">
+            <div class="touch-joystick-knob" id="touch-joystick-knob"></div>
+          </div>
+          <span class="touch-zone-hint" aria-hidden="true">DRAG TO MOVE</span>
+        </div>
+
+        <div class="touch-zone touch-zone--right" id="touch-zone-actions" aria-label="Combat Touch Zone">
+          <div class="touch-action-pad" role="group" aria-label="Combat Touch Buttons">
+            <button type="button" class="touch-btn touch-btn--super hidden" id="touch-btn-signature" aria-label="Signature Move">
+              <span class="touch-btn-icon">🔥</span>
+              <span class="touch-btn-label">SUPER</span>
+            </button>
+            <button type="button" class="touch-btn touch-btn--secondary" id="touch-btn-special" aria-label="Secondary Special">
+              <span class="touch-btn-icon">⚡</span>
+              <span class="touch-btn-label">SPECIAL</span>
+            </button>
+            <button type="button" class="touch-btn touch-btn--combo" id="touch-btn-combo" aria-label="3-Hit Combo">
+              <span class="touch-btn-icon">🥊</span>
+              <span class="touch-btn-label">COMBO</span>
+            </button>
+            <button type="button" class="touch-btn touch-btn--counter" id="touch-btn-counter" aria-label="Counter Strike">
+              <span class="touch-btn-icon">🛡</span>
+              <span class="touch-btn-label">COUNTER</span>
+            </button>
+            <button type="button" class="touch-btn touch-btn--kick" id="touch-btn-kick" aria-label="Drop Kick">
+              <span class="touch-btn-icon">🦶</span>
+              <span class="touch-btn-label">KICK</span>
+            </button>
+            <button type="button" class="touch-btn touch-btn--punch" id="touch-btn-punch" aria-label="Quick Punch">
+              <span class="touch-btn-icon">👊</span>
+              <span class="touch-btn-label">PUNCH</span>
+            </button>
+          </div>
+          <span class="touch-zone-hint touch-zone-hint--right" aria-hidden="true">TAP PUNCH • SWIPE KICK</span>
+        </div>
+      </div>
+
       <!-- Minimal Bottom Utility Controls -->
       <footer class="hud-bottom">
         <div class="utility-buttons">
@@ -309,8 +349,8 @@
 
           <div class="controls-guide-tip">
             <strong>Pro Tip:</strong> Landing blows and taking hits fills your corner <strong>Signature Meter</strong>
-            to 100%. Once glowing gold, press <kbd>F</kbd> or <kbd>G</kbd> for a cinematic finisher — and stay sharp,
-            because CPU rivals unleash theirs too!
+            to 100%. Once glowing gold, press <kbd>F</kbd> or <kbd>G</kbd> (or tap 🔥 <strong>SUPER</strong> on mobile).
+            <strong>On Mobile:</strong> drag the left side for the virtual joystick, and tap/swipe the right side or action pads to strike!
           </div>
         </div>
       </div>

@@ -22,14 +22,16 @@ export class SceneManager {
   private readonly smoothParallax = new THREE.Vector2();
   private readonly raycaster = new THREE.Raycaster();
   private onResizeCallback?: (width: number, height: number) => void;
+  private orientationRafId?: number;
+  private resizeObserver?: ResizeObserver;
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x9be2ff);
     this.scene.fog = new THREE.Fog(0x9be2ff, 16, 36);
 
-    const width = canvas.clientWidth || window.innerWidth;
-    const height = canvas.clientHeight || window.innerHeight;
+    const width = Math.max(1, canvas.clientWidth || window.innerWidth);
+    const height = Math.max(1, canvas.clientHeight || window.innerHeight);
 
     this.camera = new THREE.PerspectiveCamera(44, width / height, 0.1, 100);
     this.camera.position.copy(this.baseCameraPos);
@@ -41,14 +43,22 @@ export class SceneManager {
       powerPreference: 'high-performance',
     });
     this.renderer.setSize(width, height, false);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.08;
 
     this.setupLighting();
+    this.handleResize();
+
     window.addEventListener('resize', this.handleResize);
+    window.addEventListener('orientationchange', this.handleOrientationResize);
+    window.visualViewport?.addEventListener('resize', this.handleResize);
+    if (typeof ResizeObserver !== 'undefined' && canvas.parentElement) {
+      this.resizeObserver = new ResizeObserver(() => this.handleResize());
+      this.resizeObserver.observe(canvas.parentElement);
+    }
     window.addEventListener('pointermove', this.handlePointerMove);
   }
 
@@ -299,18 +309,48 @@ export class SceneManager {
     this.onResizeCallback = callback;
   }
 
+  private readonly handleOrientationResize = (): void => {
+    this.handleResize();
+    if (this.orientationRafId !== undefined) {
+      cancelAnimationFrame(this.orientationRafId);
+    }
+    this.orientationRafId = requestAnimationFrame(() => {
+      this.orientationRafId = undefined;
+      this.handleResize();
+    });
+  };
+
   private readonly handleResize = (): void => {
     const parent = this.renderer.domElement.parentElement;
-    const width = parent ? parent.clientWidth : window.innerWidth;
-    const height = parent ? parent.clientHeight : window.innerHeight;
-    this.camera.aspect = width / height;
+    const width = Math.max(
+      1,
+      parent && parent.clientWidth > 0 ? parent.clientWidth : window.innerWidth
+    );
+    const height = Math.max(
+      1,
+      parent && parent.clientHeight > 0 ? parent.clientHeight : window.innerHeight
+    );
+    const aspect = width / height;
+
+    this.camera.aspect = aspect;
+    // Widen vertical FOV on portrait mobile viewports so both fighters remain comfortably framed
+    this.camera.fov =
+      aspect < 1.35 ? Math.min(68, 44 * Math.pow(1.35 / Math.max(aspect, 0.5), 0.36)) : 44;
     this.camera.updateProjectionMatrix();
+
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(width, height, false);
     this.onResizeCallback?.(width, height);
   };
 
   public dispose(): void {
     window.removeEventListener('resize', this.handleResize);
+    window.removeEventListener('orientationchange', this.handleOrientationResize);
+    window.visualViewport?.removeEventListener('resize', this.handleResize);
+    this.resizeObserver?.disconnect();
+    if (this.orientationRafId !== undefined) {
+      cancelAnimationFrame(this.orientationRafId);
+    }
     window.removeEventListener('pointermove', this.handlePointerMove);
     this.renderer.dispose();
   }

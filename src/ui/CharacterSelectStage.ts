@@ -566,8 +566,10 @@ export class CharacterSelectStage {
   public resize(width: number, height: number): void {
     const aspect = Math.max(width, 1) / Math.max(height, 1);
     this.camera.aspect = aspect;
-    // Widen distance slightly on narrow viewports so both fighters remain fully framed
-    const narrowBoost = aspect < 1.38 ? 1.38 / Math.max(aspect, 0.72) : 1;
+    // Widen FOV & camera distance cleanly on narrow/portrait phone screens so both fighters stay framed
+    this.camera.fov =
+      aspect < 1.1 ? Math.min(56, 40 * Math.pow(1.1 / Math.max(aspect, 0.5), 0.32)) : 40;
+    const narrowBoost = aspect < 1.38 ? Math.min(2.15, 1.38 / Math.max(aspect, 0.56)) : 1;
     this.baseCameraPos.set(0, 1.56, 4.18 * narrowBoost);
     this.camera.position.copy(this.baseCameraPos);
     this.camera.lookAt(this.baseLookAt);

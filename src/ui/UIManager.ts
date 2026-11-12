@@ -221,8 +221,28 @@ export class UIManager {
   private readonly btnMatchRematch = document.getElementById('btn-match-rematch') as HTMLButtonElement | null;
   private readonly p1SignatureLabel = document.getElementById('hud-p1-signature-label');
   private readonly p2SignatureLabel = document.getElementById('hud-p2-signature-label');
+  private readonly p1SignatureBox = document.getElementById('hud-p1-signature-box');
+
+  private readonly touchControlsOverlay = document.getElementById('touch-controls-overlay');
+  private readonly touchZoneMove = document.getElementById('touch-zone-move');
+  private readonly touchJoystickBase = document.getElementById('touch-joystick-base');
+  private readonly touchJoystickKnob = document.getElementById('touch-joystick-knob');
+  private readonly touchZoneActions = document.getElementById('touch-zone-actions');
+  private readonly touchBtnPunch = document.getElementById('touch-btn-punch');
+  private readonly touchBtnKick = document.getElementById('touch-btn-kick');
+  private readonly touchBtnCombo = document.getElementById('touch-btn-combo');
+  private readonly touchBtnCounter = document.getElementById('touch-btn-counter');
+  private readonly touchBtnSignature = document.getElementById('touch-btn-signature');
+  private readonly touchBtnSpecial = document.getElementById('touch-btn-special');
 
   private readonly pressedKeys = new Set<string>();
+  private activeJoystickPointerId: number | null = null;
+  private joystickOriginX = 0;
+  private joystickOriginY = 0;
+  private readonly joystickVector = { x: 0, z: 0 };
+  private activeActionPointerId: number | null = null;
+  private actionStartX = 0;
+  private actionStartY = 0;
   private toastTimeline?: gsap.core.Timeline;
   private quipHideTimer?: number;
   private hoverPreviewTimer?: number;
@@ -456,6 +476,180 @@ export class UIManager {
     window.addEventListener('keydown', this.handleKeyDown);
     window.addEventListener('keyup', this.handleKeyUp);
     window.addEventListener('blur', this.handleWindowBlur);
+    this.bindTouchControlsEvents();
+  }
+
+  private readonly handleTouchCapableDetected = (event?: Event): void => {
+    const pointerType = (event as PointerEvent | undefined)?.pointerType;
+    if (event?.type === 'touchstart' || pointerType === 'touch') {
+      this.uiOverlay.classList.add('ui-overlay--touch-enabled');
+      this.touchControlsOverlay?.classList.add('touch-controls-overlay--active');
+    }
+  };
+
+  private bindTouchControlsEvents(): void {
+    window.addEventListener('touchstart', this.handleTouchCapableDetected, { passive: true });
+    window.addEventListener('pointerdown', this.handleTouchCapableDetected, { passive: true });
+
+    this.p1SignatureBox?.addEventListener('click', () => {
+      this.handlers.onUserGesture();
+      if (this.p1SignatureBox?.classList.contains('signature-meter--ready')) {
+        this.handlers.onSignatureAction();
+      }
+    });
+
+    const MAX_JOYSTICK_RADIUS = 42;
+    const JOYSTICK_DEADZONE = 7;
+
+    const updateJoystickFromPoint = (clientX: number, clientY: number) => {
+      const dx = clientX - this.joystickOriginX;
+      const dy = clientY - this.joystickOriginY;
+      const dist = Math.hypot(dx, dy);
+      const clampedDist = Math.min(MAX_JOYSTICK_RADIUS, dist);
+      const angle = Math.atan2(dy, dx);
+      const offsetX = dist > 0.001 ? Math.cos(angle) * clampedDist : 0;
+      const offsetY = dist > 0.001 ? Math.sin(angle) * clampedDist : 0;
+
+      if (this.touchJoystickKnob) {
+        this.touchJoystickKnob.style.transform = `translate3d(${offsetX.toFixed(1)}px, ${offsetY.toFixed(1)}px, 0)`;
+      }
+
+      if (dist <= JOYSTICK_DEADZONE) {
+        this.joystickVector.x = 0;
+        this.joystickVector.z = 0;
+      } else {
+        const strength = Math.min(
+          1,
+          (clampedDist - JOYSTICK_DEADZONE) / (MAX_JOYSTICK_RADIUS - JOYSTICK_DEADZONE)
+        );
+        this.joystickVector.x = Math.cos(angle) * strength;
+        this.joystickVector.z = Math.sin(angle) * strength;
+      }
+      this.emitMovementVector();
+    };
+
+    const endJoystickPointer = (pointerId: number) => {
+      if (this.activeJoystickPointerId !== pointerId) return;
+      this.resetTouchJoystick();
+    };
+
+    this.touchZoneMove?.addEventListener('pointerdown', (event: PointerEvent) => {
+      if (this.movementLocked || this.isModalOpen() || this.isControlsGuideOpen()) return;
+      if (this.activeJoystickPointerId !== null) return;
+      event.preventDefault();
+      this.handlers.onUserGesture();
+      this.activeJoystickPointerId = event.pointerId;
+      this.touchZoneMove?.setPointerCapture?.(event.pointerId);
+
+      const rect = this.touchZoneMove!.getBoundingClientRect();
+      const pad = 54;
+      const localX = Math.max(pad, Math.min(rect.width - pad, event.clientX - rect.left));
+      const localY = Math.max(pad, Math.min(rect.height - pad, event.clientY - rect.top));
+      this.joystickOriginX = rect.left + localX;
+      this.joystickOriginY = rect.top + localY;
+
+      if (this.touchJoystickBase) {
+        this.touchJoystickBase.style.left = `${localX}px`;
+        this.touchJoystickBase.style.top = `${localY}px`;
+        this.touchJoystickBase.classList.remove('hidden');
+      }
+      updateJoystickFromPoint(event.clientX, event.clientY);
+    });
+
+    this.touchZoneMove?.addEventListener('pointermove', (event: PointerEvent) => {
+      if (this.activeJoystickPointerId !== event.pointerId) return;
+      event.preventDefault();
+      updateJoystickFromPoint(event.clientX, event.clientY);
+    });
+
+    this.touchZoneMove?.addEventListener('pointerup', (event: PointerEvent) => {
+      endJoystickPointer(event.pointerId);
+    });
+    this.touchZoneMove?.addEventListener('pointercancel', (event: PointerEvent) => {
+      endJoystickPointer(event.pointerId);
+    });
+    this.touchZoneMove?.addEventListener('lostpointercapture', (event: PointerEvent) => {
+      endJoystickPointer(event.pointerId);
+    });
+
+    const bindTouchButton = (btn: HTMLElement | null, action: () => void) => {
+      if (!btn) return;
+      const release = () => btn.classList.remove('touch-btn--pressed');
+      btn.addEventListener('pointerdown', (event: PointerEvent) => {
+        event.stopPropagation();
+        event.preventDefault();
+        this.handlers.onUserGesture();
+        btn.classList.add('touch-btn--pressed');
+        action();
+      });
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointercancel', release);
+      btn.addEventListener('pointerleave', release);
+    };
+
+    bindTouchButton(this.touchBtnPunch, () => this.handlers.onPrimaryAction());
+    bindTouchButton(this.touchBtnKick, () => this.handlers.onKickAction());
+    bindTouchButton(this.touchBtnCombo, () => this.handlers.onMuayThaiAction());
+    bindTouchButton(this.touchBtnCounter, () => this.handlers.onCounterAction());
+    bindTouchButton(this.touchBtnSignature, () => this.handlers.onSignatureAction());
+    bindTouchButton(this.touchBtnSpecial, () => this.handlers.onSecondarySignatureAction?.());
+
+    // Invisible right-half tap & swipe zone for quick eyes-on-fighters mobile combat
+    this.touchZoneActions?.addEventListener('pointerdown', (event: PointerEvent) => {
+      if (this.movementLocked || this.isModalOpen() || this.isControlsGuideOpen()) return;
+      if (this.activeActionPointerId !== null) return;
+      event.preventDefault();
+      this.handlers.onUserGesture();
+      this.activeActionPointerId = event.pointerId;
+      this.actionStartX = event.clientX;
+      this.actionStartY = event.clientY;
+      this.touchZoneActions?.setPointerCapture?.(event.pointerId);
+    });
+
+    const finishActionGesture = (event: PointerEvent, cancelled: boolean) => {
+      if (this.activeActionPointerId !== event.pointerId) return;
+      this.activeActionPointerId = null;
+      if (cancelled || this.movementLocked || this.isModalOpen() || this.isControlsGuideOpen()) return;
+
+      const dx = event.clientX - this.actionStartX;
+      const dy = event.clientY - this.actionStartY;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist >= 34) {
+        if (dy > 28 && Math.abs(dy) >= Math.abs(dx) * 0.75) {
+          this.handlers.onCounterAction();
+        } else {
+          this.handlers.onKickAction();
+        }
+      } else {
+        this.handlers.onPrimaryAction();
+      }
+    };
+
+    this.touchZoneActions?.addEventListener('pointerup', (event: PointerEvent) => {
+      finishActionGesture(event, false);
+    });
+    this.touchZoneActions?.addEventListener('pointercancel', (event: PointerEvent) => {
+      finishActionGesture(event, true);
+    });
+  }
+
+  private resetTouchJoystick(): void {
+    this.activeJoystickPointerId = null;
+    this.activeActionPointerId = null;
+    this.joystickVector.x = 0;
+    this.joystickVector.z = 0;
+    if (this.touchJoystickKnob) {
+      this.touchJoystickKnob.style.transform = 'translate3d(0, 0, 0)';
+    }
+    this.touchJoystickBase?.classList.add('hidden');
+    this.emitMovementVector();
+  }
+
+  public setTouchSignatureReady(player: 'player1' | 'player2', isReady: boolean): void {
+    if (player === 'player1') {
+      this.touchBtnSignature?.classList.toggle('hidden', !isReady);
+    }
   }
 
   private bindSelectScreenEvents(): void {
@@ -1085,7 +1279,7 @@ export class UIManager {
 
   private readonly handleWindowBlur = (): void => {
     this.pressedKeys.clear();
-    this.handlers.onMoveInput(0, 0);
+    this.resetTouchJoystick();
   };
 
   private isMovementCode(code: string): boolean {
@@ -1110,7 +1304,12 @@ export class UIManager {
     const right = this.pressedKeys.has('KeyD') || this.pressedKeys.has('ArrowRight') ? 1 : 0;
     const up = this.pressedKeys.has('KeyW') || this.pressedKeys.has('ArrowUp') ? 1 : 0;
     const down = this.pressedKeys.has('KeyS') || this.pressedKeys.has('ArrowDown') ? 1 : 0;
-    this.handlers.onMoveInput(right - left, down - up);
+    const keyX = right - left;
+    const keyZ = down - up;
+
+    const outX = keyX !== 0 ? keyX : this.joystickVector.x;
+    const outZ = keyZ !== 0 ? keyZ : this.joystickVector.z;
+    this.handlers.onMoveInput(outX, outZ);
   }
 
   public isControlsGuideOpen(): boolean {
@@ -1125,7 +1324,7 @@ export class UIManager {
     this.controlsGuideBackdrop.classList.toggle('hidden', !open);
     if (open) {
       this.pressedKeys.clear();
-      this.handlers.onMoveInput(0, 0);
+      this.resetTouchJoystick();
     }
     if (wasOpen !== open) {
       this.handlers.onControlsGuideToggled?.(open);
@@ -1143,7 +1342,7 @@ export class UIManager {
     this.charModalBackdrop.classList.toggle('hidden', !open);
     this.uiOverlay.classList.toggle('ui-overlay--select-open', open);
     this.pressedKeys.clear();
-    this.handlers.onMoveInput(0, 0);
+    this.resetTouchJoystick();
 
     if (open) {
       const defaults = getDefaultMatchup();
@@ -1218,6 +1417,9 @@ export class UIManager {
     this.lastKnownPlayer = state.selectedCharacter;
     this.lastKnownOpponent = state.opponentCharacter;
     this.movementLocked = Boolean(state.controlsLocked);
+    if (this.movementLocked && (this.activeJoystickPointerId !== null || this.activeActionPointerId !== null)) {
+      this.resetTouchJoystick();
+    }
 
     const gsapDrivesWidth = Boolean(state.matchState && state.matchState !== 'INIT');
     this.renderFighterSlot(
@@ -1356,6 +1558,8 @@ export class UIManager {
     window.removeEventListener('keydown', this.handleKeyDown);
     window.removeEventListener('keyup', this.handleKeyUp);
     window.removeEventListener('blur', this.handleWindowBlur);
+    window.removeEventListener('touchstart', this.handleTouchCapableDetected);
+    window.removeEventListener('pointerdown', this.handleTouchCapableDetected);
     if (this.quipHideTimer) clearTimeout(this.quipHideTimer);
     this.cancelPendingHoverPreview();
     this.toastTimeline?.kill();

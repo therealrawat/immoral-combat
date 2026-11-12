@@ -427,7 +427,8 @@ export class GameController {
           this.fighterHp.set(fighterId, Math.round(hp));
           this.syncHUD();
         },
-        onSignatureChargeChange: () => {
+        onSignatureChargeChange: (slot, _charge, isReady) => {
+          this.ui.setTouchSignatureReady(slot, isReady);
           this.syncHUD();
         },
         onSlowMoChange: (active) => {

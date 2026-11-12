@@ -29,7 +29,14 @@ body,
   padding: 0;
   width: 100%;
   height: 100%;
+  height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
   font-family: var(--font-ui);
   background: #8be0ff;
 }
@@ -38,6 +45,7 @@ body,
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: none;
   cursor: pointer;
 }
 
@@ -51,7 +59,8 @@ body,
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 12px 22px 16px;
+  padding: max(12px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
   z-index: 10;
 }
 
@@ -63,7 +72,8 @@ body,
 .ui-overlay--select-open .top-feedback-stack,
 .ui-overlay--select-open .hud-bottom,
 .ui-overlay--select-open .signature-meter-box,
-.ui-overlay--select-open .match-announcement {
+.ui-overlay--select-open .match-announcement,
+.ui-overlay--select-open .touch-controls-overlay {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -1476,6 +1486,8 @@ body,
    BOTTOM UTILITY CONTROLS
    ========================================================= */
 .hud-bottom {
+  position: relative;
+  z-index: 12;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1602,17 +1614,18 @@ body,
   }
 
   .signature-meter-box {
-    width: 170px;
-    bottom: 62px;
-    padding: 6px 9px 7px;
+    width: 162px;
+    top: 66px;
+    bottom: auto;
+    padding: 5px 8px 6px;
   }
 
   .signature-meter-box--left {
-    left: 10px;
+    left: max(10px, env(safe-area-inset-left));
   }
 
   .signature-meter-box--right {
-    right: 10px;
+    right: max(10px, env(safe-area-inset-right));
   }
 }
 
@@ -1620,6 +1633,230 @@ body,
   .signature-meter-box {
     width: 185px;
     bottom: 18px;
+  }
+}
+
+/* =========================================================
+   MOBILE-FIRST TOUCH OVERLAY (JOYSTICK + ACTION PAD)
+   ========================================================= */
+.touch-controls-overlay {
+  position: fixed;
+  inset: 0 0 54px 0;
+  z-index: 11;
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  pointer-events: none;
+  touch-action: none;
+}
+
+@media (hover: none), (pointer: coarse), (max-width: 960px) {
+  .touch-controls-overlay {
+    display: grid;
+  }
+
+  .ui-overlay {
+    padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+      max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  }
+}
+
+.ui-overlay--touch-enabled .touch-controls-overlay {
+  display: grid;
+}
+
+.touch-zone {
+  position: relative;
+  height: 100%;
+  pointer-events: auto;
+  touch-action: none;
+  display: flex;
+  align-items: flex-end;
+  padding: 12px max(12px, env(safe-area-inset-left)) 10px;
+}
+
+.touch-zone--right {
+  justify-content: flex-end;
+  padding: 12px max(12px, env(safe-area-inset-right)) 10px;
+}
+
+.touch-joystick-base {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 108px;
+  height: 108px;
+  margin-left: -54px;
+  margin-top: -54px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(15, 23, 42, 0.28) 0%, rgba(15, 23, 42, 0.62) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.34);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45), inset 0 0 14px rgba(56, 189, 248, 0.22);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.touch-joystick-knob {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffffff 0%, #cbd5e1 100%);
+  border: 2px solid rgba(15, 23, 42, 0.55);
+  box-shadow: 0 4px 12px rgba(2, 6, 23, 0.5);
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+.touch-zone-hint {
+  position: absolute;
+  bottom: 10px;
+  left: max(16px, env(safe-area-inset-left));
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.58);
+  text-shadow: 0 1px 4px rgba(2, 6, 23, 0.85);
+  pointer-events: none;
+}
+
+.touch-zone-hint--right {
+  left: auto;
+  right: max(16px, env(safe-area-inset-right));
+}
+
+.touch-action-pad {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 8px;
+  align-items: end;
+  justify-items: end;
+  margin-bottom: 22px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.touch-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 56px;
+  min-height: 56px;
+  padding: 6px 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.34);
+  background: linear-gradient(160deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.92));
+  color: #f8fafc;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: transform 0.08s ease, filter 0.12s ease, box-shadow 0.12s ease;
+  touch-action: none;
+}
+
+.touch-btn:active,
+.touch-btn.touch-btn--pressed {
+  transform: scale(0.92);
+  filter: brightness(1.18);
+}
+
+.touch-btn-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.touch-btn-label {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.touch-btn--punch {
+  min-width: 66px;
+  min-height: 66px;
+  background: linear-gradient(155deg, #ef4444, #991b1b);
+  border-color: rgba(254, 202, 202, 0.65);
+}
+
+.touch-btn--kick {
+  min-width: 60px;
+  min-height: 60px;
+  background: linear-gradient(155deg, #f97316, #9a3412);
+  border-color: rgba(254, 215, 170, 0.6);
+}
+
+.touch-btn--counter {
+  background: linear-gradient(155deg, #0ea5e9, #075985);
+  border-color: rgba(186, 230, 253, 0.55);
+}
+
+.touch-btn--combo {
+  background: linear-gradient(155deg, #eab308, #854d0e);
+  border-color: rgba(254, 240, 138, 0.55);
+}
+
+.touch-btn--secondary {
+  background: linear-gradient(155deg, #a855f7, #581c87);
+  border-color: rgba(233, 213, 255, 0.55);
+}
+
+.touch-btn--super {
+  background: linear-gradient(155deg, #facc15, #dc2626);
+  border-color: #fef08a;
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.65), 0 6px 16px rgba(2, 6, 23, 0.55);
+}
+
+@media (max-height: 480px) {
+  .touch-controls-overlay {
+    inset: 0 0 42px 0;
+  }
+
+  .signature-meter-box {
+    top: 52px;
+    bottom: auto;
+    width: 148px;
+    padding: 4px 7px 5px;
+  }
+
+  .touch-action-pad {
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .touch-btn {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 4px 6px;
+  }
+
+  .touch-btn--punch {
+    min-width: 56px;
+    min-height: 56px;
+  }
+
+  .touch-btn--kick {
+    min-width: 52px;
+    min-height: 52px;
+  }
+
+  .touch-joystick-base {
+    width: 92px;
+    height: 92px;
+    margin-left: -46px;
+    margin-top: -46px;
+  }
+
+  .touch-joystick-knob {
+    width: 38px;
+    height: 38px;
   }
 }
 
