@@ -184,7 +184,7 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     state: 'RUN',
     clipSuffix: 'Run',
     moveKeys: ['running', 'run', 'run-to-rolling'],
-    defaultSpeed: 1.35,
+    defaultSpeed: 1.0,
   },
   {
     state: 'ENTRY',
@@ -264,21 +264,21 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
   >
 > = {
   chinu: {
-    ENTRY: { moveKeys: ['victory', 'rallying'], clipName: 'ChinuNativeVictoryEntry', speed: 1.2 },
+    ENTRY: { moveKeys: ['rallying', 'victory'], clipName: 'ChinuNativeVictoryEntry', speed: 1.2 },
     IDLE: { moveKeys: ['warrior-idle', 'idle-1'] },
     PUNCH: { moveKeys: ['elbow-punching', 'punching'], clipName: 'ChinuNativeElbowPunch', speed: 2.35 },
     KICK: { moveKeys: ['mma-kick', 'kicking'], clipName: 'ChinuNativeMmaKick', speed: 2.1 },
     MUAY_THAI: { moveKeys: ['quad-punch'], clipName: 'ChinuNativeQuadPunch', speed: 2.2 },
     KISS: { moveKeys: ['kiss', 'kiss-1'], clipName: 'ChinuNativeKiss', speed: 1.0 },
-    CHAMP_POSE: { moveKeys: ['breathing-idle', 'rallying'], clipName: 'ChinuNativeChampPose', speed: 1.0, holdDurationSec: 2.2 },
-    DANCE: { moveKeys: ['excited', 'cheering'], clipName: 'ChinuNativeBoxerDance', speed: 1.4, stripHorizontalRootMotion: false },
-    POSE: { moveKeys: ['victory'], speed: 1.45, stripHorizontalRootMotion: false },
+    CHAMP_POSE: { moveKeys: ['breathing-idle'], clipName: 'ChinuNativeChampPose', speed: 1.0, holdDurationSec: 2.5 },
+    DANCE: { moveKeys: ['cheering', 'excited'], clipName: 'ChinuNativeCheering', speed: 1.25, stripHorizontalRootMotion: true },
+    POSE: { moveKeys: ['victory'], clipName: 'ChinuNativeChampVictory', speed: 1.25, stripHorizontalRootMotion: true },
   },
   priyanshu: {
     ENTRY: { moveKeys: ['quick-formal-bow', 'waving'], clipName: 'PriyanshuNativeBowEntry', speed: 1.25 },
-    IDLE: { moveKeys: ['warrior-idle', 'happy-idle'] },
+    IDLE: { moveKeys: ['warrior-idle'] },
     LOUNGE: {
-      moveKeys: ['happy-idle', 'breathing-idle'],
+      moveKeys: ['warrior-idle', 'breathing-idle'],
       clipName: 'PriyanshuNativeLoungePose',
       speed: 1.0,
       holdDurationSec: 2.35,
@@ -286,50 +286,82 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
     PUNCH: { moveKeys: ['punching', 'hook-punch'], speed: 2.4 },
     KICK: { moveKeys: ['flying-kick', 'kicking'], clipName: 'PriyanshuNativeFlyingKick', speed: 2.2 },
     MUAY_THAI: { moveKeys: ['quad-punch'], clipName: 'PriyanshuNativeQuadPunch', speed: 2.35 },
-    POSE: { moveKeys: ['victory', 'clapping'], clipName: 'PriyanshuNativeVictoryPose', speed: 1.45 },
-    DANCE: { moveKeys: ['excited', 'cheering'], clipName: 'PriyanshuNativeExcitedDance', speed: 1.4 },
+    POSE: { moveKeys: ['excited'], clipName: 'PriyanshuNativeExcitedVictory', speed: 1.35, stripHorizontalRootMotion: true },
+    DANCE: { moveKeys: ['victory', 'clapping'], clipName: 'PriyanshuNativeVictoryDance', speed: 1.25, stripHorizontalRootMotion: true },
   },
   modiji: {
     ENTRY: { moveKeys: ['praying'], clipName: 'ModijiNativePrayingEntry', speed: 1.25 },
-    IDLE: { moveKeys: ['breathing-idle', 'warrior-idle'], speed: 1.0 },
+    IDLE: { moveKeys: ['breathing-idle'] },
     PUNCH: { moveKeys: ['punching'], speed: 2.35 },
     KICK: { moveKeys: ['mma-kick', 'kicking'], speed: 2.1 },
     MUAY_THAI: { moveKeys: ['quad-punch'], speed: 1.8 },
-    POSE: { moveKeys: ['victory'], clipName: 'ModijiNativeVictory', speed: 1.25, stripHorizontalRootMotion: true },
-    DANCE: { moveKeys: ['cheering', 'excited'], clipName: 'ModijiNativeCheer', speed: 1.3, stripHorizontalRootMotion: true },
+    POSE: { moveKeys: ['praying'], clipName: 'ModijiNativeNamasteVictory', speed: 1.05, holdDurationSec: 2.8, stripHorizontalRootMotion: true },
+    DANCE: { moveKeys: ['clapping'], clipName: 'ModijiNativeClappingDance', speed: 1.2, stripHorizontalRootMotion: true },
   },
   trump: {
     ENTRY: { moveKeys: ['waving', 'rallying'], clipName: 'TrumpNativeWavingEntry', speed: 1.25 },
-    IDLE: { moveKeys: ['warrior-idle', 'breathing-idle'], speed: 1.0 },
+    IDLE: { moveKeys: ['warrior-idle'] },
     PUNCH: { moveKeys: ['hook-punch', 'punching'], clipName: 'TrumpNativeHookPunch', speed: 2.35 },
     KICK: { moveKeys: ['kicking'], speed: 2.0 },
     MUAY_THAI: { moveKeys: ['quad-punch'], speed: 1.8 },
-    POSE: { moveKeys: ['rallying', 'victory'], clipName: 'TrumpNativeRallyPose', speed: 1.35, stripHorizontalRootMotion: true },
-    DANCE: { moveKeys: ['trump-dance'], clipName: 'TrumpNativeYmcaDance', speed: 1.35, stripHorizontalRootMotion: true },
+    POSE: { moveKeys: ['trump-dance'], clipName: 'TrumpNativeYmcaVictory', speed: 1.25, stripHorizontalRootMotion: true },
+    DANCE: { moveKeys: ['rallying'], clipName: 'TrumpNativeRallyDance', speed: 1.25, stripHorizontalRootMotion: true },
   },
   putin: {
     ENTRY: { moveKeys: ['salute'], clipName: 'PutinNativeSaluteEntry', speed: 1.2 },
-    IDLE: { moveKeys: ['warrior-idle', 'neutral-idle'], speed: 1.0 },
+    IDLE: { moveKeys: ['neutral-idle'] },
     PUNCH: { moveKeys: ['punching'], speed: 2.35 },
     KICK: { moveKeys: ['flying-kick', 'mma-kick'], clipName: 'PutinNativeFlyingKick', speed: 2.15 },
     MUAY_THAI: { moveKeys: ['mma-kick', 'quad-punch'], speed: 1.8 },
     POSE: {
-      moveKeys: ['victory', 'salute'],
-      clipName: 'PutinNativeVictory',
-      speed: 1.3,
+      moveKeys: ['salute'],
+      clipName: 'PutinNativeSaluteVictory',
+      speed: 1.15,
+      holdDurationSec: 2.6,
       stripHorizontalRootMotion: true,
     },
-    DANCE: { moveKeys: ['clapping'], clipName: 'PutinNativeClappingDance', speed: 1.3, stripHorizontalRootMotion: true },
+    DANCE: { moveKeys: ['clapping'], clipName: 'PutinNativeClappingDance', speed: 1.2, stripHorizontalRootMotion: true },
     CHAMP_POSE: { moveKeys: ['neutral-idle', 'breathing-idle'], clipName: 'PutinNativeChampPose', speed: 1.0, holdDurationSec: 2.2 },
   },
   amitabh: {
     ENTRY: { moveKeys: ['quick-informal-bow', 'waving'], clipName: 'AmitabhNativeBowEntry', speed: 1.2 },
-    IDLE: { moveKeys: ['breathing-idle', 'warrior-idle'], speed: 1.0 },
+    IDLE: { moveKeys: ['breathing-idle'] },
     PUNCH: { moveKeys: ['hook-punch', 'punching'], clipName: 'AmitabhNativeHookPunch', speed: 2.35 },
     KICK: { moveKeys: ['kicking'], speed: 2.05 },
     MUAY_THAI: { moveKeys: ['quad-punch'], clipName: 'AmitabhNativeQuadPunch', speed: 2.1 },
-    POSE: { moveKeys: ['victory', 'waving'], clipName: 'AmitabhNativeVictory', speed: 1.3 },
-    DANCE: { moveKeys: ['excited', 'cheering'], clipName: 'AmitabhNativeDance', speed: 1.35 },
+    POSE: { moveKeys: ['waving'], clipName: 'AmitabhNativeShahenshahWave', speed: 1.15, holdDurationSec: 2.6, stripHorizontalRootMotion: true },
+    DANCE: { moveKeys: ['quick-informal-bow'], clipName: 'AmitabhNativeBowDance', speed: 1.2, stripHorizontalRootMotion: true },
+  },
+};
+
+/** Character-specific idle animation preferences for character select showcase stances (`idle-1` and `idle-2`). */
+export const CHARACTER_IDLE_VARIANTS: Record<
+  CharacterId,
+  Record<SelectIdleVariant, readonly string[]>
+> = {
+  chinu: {
+    'idle-1': ['warrior-idle'],
+    'idle-2': ['breathing-idle'],
+  },
+  priyanshu: {
+    'idle-1': ['happy-idle'],
+    'idle-2': ['warrior-idle'],
+  },
+  modiji: {
+    'idle-1': ['breathing-idle'],
+    'idle-2': ['neutral-idle'],
+  },
+  trump: {
+    'idle-1': ['warrior-idle'],
+    'idle-2': ['neutral-idle'],
+  },
+  putin: {
+    'idle-1': ['neutral-idle'],
+    'idle-2': ['warrior-idle'],
+  },
+  amitabh: {
+    'idle-1': ['breathing-idle'],
+    'idle-2': ['warrior-idle'],
   },
 };
 
@@ -420,6 +452,11 @@ export function getCharacterIdleUrl(
   characterId: CharacterId,
   variant: SelectIdleVariant
 ): string | undefined {
+  const customKeys = CHARACTER_IDLE_VARIANTS[characterId]?.[variant];
+  if (customKeys) {
+    const resolvedCustom = resolveMoveUrl(characterId, customKeys, false);
+    if (resolvedCustom) return resolvedCustom.url;
+  }
   const keys = variant === 'idle-1' ? ['idle-1', 'idle'] : ['idle-2'];
   return resolveMoveUrl(characterId, keys, variant === 'idle-1')?.url;
 }
@@ -427,8 +464,8 @@ export function getCharacterIdleUrl(
 /** Returns which idle variants (`idle-1`, `idle-2`) exist for a character. */
 export function getAvailableCharacterIdles(characterId: CharacterId): SelectIdleVariant[] {
   const variants: SelectIdleVariant[] = [];
-  if (resolveMoveUrl(characterId, ['idle-1', 'idle'], true)) variants.push('idle-1');
-  if (resolveMoveUrl(characterId, ['idle-2'], false)) variants.push('idle-2');
+  if (getCharacterIdleUrl(characterId, 'idle-1')) variants.push('idle-1');
+  if (getCharacterIdleUrl(characterId, 'idle-2')) variants.push('idle-2');
   return variants;
 }
 
@@ -443,10 +480,12 @@ export function buildConventionNativeClipSpecs(id: CharacterId): NativeGLBClipSp
   const specs: NativeGLBClipSpec[] = [];
 
   for (const rule of STANDARD_CONVENTION_RULES) {
-    const resolved = resolveMoveUrl(id, rule.moveKeys);
+    const custom = overrides[rule.state] ?? {};
+    const candidateKeys =
+      custom.moveKeys && custom.moveKeys.length > 0 ? custom.moveKeys : rule.moveKeys;
+    const resolved = resolveMoveUrl(id, candidateKeys);
     if (!resolved) continue;
 
-    const custom = overrides[rule.state] ?? {};
     specs.push({
       state: rule.state,
       url: resolved.url,
@@ -461,7 +500,8 @@ export function buildConventionNativeClipSpecs(id: CharacterId): NativeGLBClipSp
     });
   }
 
-  const secondaryIdle = resolveMoveUrl(id, ['idle-2'], false);
+  const idle2Keys = CHARACTER_IDLE_VARIANTS[id]?.['idle-2'] ?? ['idle-2'];
+  const secondaryIdle = resolveMoveUrl(id, idle2Keys, false);
   if (secondaryIdle) {
     const idle2State: FighterState = id === 'priyanshu' ? 'LOUNGE' : 'CHAMP_POSE';
     const custom = overrides[idle2State] ?? {};

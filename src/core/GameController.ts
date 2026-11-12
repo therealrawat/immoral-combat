@@ -455,12 +455,12 @@ export class GameController {
               const winnerId = this.getFighterForSlot(result.winner);
               const winnerAnim = this.anims.get(winnerId);
               if (winnerAnim && !this.physics.isKnockedDown(winnerId)) {
-                const cheerState: FighterState | null = winnerAnim.hasState('DANCE')
+                const cheerState: FighterState | null = winnerAnim.hasState('POSE')
+                  ? 'POSE'
+                  : winnerAnim.hasState('DANCE')
                   ? 'DANCE'
                   : winnerAnim.hasState('CHAMP_POSE')
                   ? 'CHAMP_POSE'
-                  : winnerAnim.hasState('POSE')
-                  ? 'POSE'
                   : null;
                 if (cheerState) {
                   this.scheduleUnscaled(() => {
