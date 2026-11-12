@@ -28,7 +28,7 @@ import { StageManager, getStageDisplayName } from './ArenaBuilder';
 import { FighterParticipantConfig, GameManager, PlayerSlot } from './GameManager';
 import { SceneManager } from './SceneManager';
 
-const FIGHTER_MAX_HP = 500;
+const FIGHTER_MAX_HP = 150;
 const PUNCH_DAMAGE = 15;
 const DIRECT_KICK_DAMAGE = 22;
 const CPU_PUNCH_DAMAGE = 10;

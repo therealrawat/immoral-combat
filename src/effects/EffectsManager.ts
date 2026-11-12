@@ -655,7 +655,7 @@ export class EffectsManager {
     const heartOrigin = midpoint.clone().add(new THREE.Vector3(0, -0.06, -0.18));
 
     this.spawnComicSprite(captionOrigin, 'MWAH!', '#ff5e99', 1.15);
-    this.spawnFloatingNumber(healOrigin, '+100 HP!', '#34d399');
+    this.spawnFloatingNumber(healOrigin, '+150 HP!', '#34d399');
     this.spawnShockwave(haloOrigin, 0xff87b2, 1.5);
     this.spawnHeartFountain(heartOrigin, 12);
   }
