@@ -110,12 +110,19 @@
       <!-- Tekken-Style Fullscreen Fighter Select Screen -->
       <div class="char-modal-backdrop select-screen" id="char-modal-backdrop" role="dialog" aria-modal="true"
         aria-labelledby="select-prompt-text">
-        <!-- Clickable 3D Stage Side Zones (Upper Showcase Area) -->
+        <!-- Clickable 3D Stage Side Zones (Upper Showcase Area) + Centered Start Fight CTA -->
         <div class="select-stage-hit-area">
           <button type="button" class="select-stage-side select-stage-side--p1" id="select-stage-p1"
             aria-label="Edit Player 1 Fighter">
             <span class="select-stage-hint">CLICK TO EDIT P1</span>
           </button>
+          <div class="select-stage-center-cta">
+            <button type="button" class="select-start-cta" id="select-ctrl-fight">
+              <span class="select-start-cta-icon" aria-hidden="true">⚔</span>
+              <span class="select-start-cta-text">START FIGHT</span>
+              <kbd>F</kbd>
+            </button>
+          </div>
           <button type="button" class="select-stage-side select-stage-side--cpu" id="select-stage-cpu"
             aria-label="Edit Opponent Fighter">
             <span class="select-stage-hint">CLICK TO EDIT OPPONENT</span>
@@ -172,7 +179,13 @@
           </button>
 
           <div class="select-center-banner">
-            <span class="select-mode-sub">1v1 Arena Match Setup</span>
+            <div class="select-mode-row">
+              <span class="select-mode-sub">1v1 Arena Match Setup</span>
+              <button type="button" class="select-guide-pill" id="select-ctrl-guide">
+                <span>? CONTROLS</span>
+                <kbd>H</kbd>
+              </button>
+            </div>
             <div class="select-prompt" id="select-prompt-text">CHOOSE YOUR FIGHTER</div>
 
             <div class="select-setup-strip" aria-label="Match Settings">
@@ -202,49 +215,6 @@
         <div class="select-roster-dock">
           <div class="select-roster-grid" id="select-roster-grid" role="listbox" aria-label="Fighters"></div>
         </div>
-
-        <!-- Bottom Tekken-Style Control Prompt Bar -->
-        <footer class="select-footer-bar">
-          <span class="select-ctrl-item">
-            <span class="ctrl-badge ctrl-badge--dpad">✛</span>
-            <span>NAVIGATE</span>
-            <kbd>←/→</kbd>
-          </span>
-
-          <button type="button" class="select-ctrl-btn" id="select-ctrl-confirm">
-            <span class="ctrl-badge ctrl-badge--x">✕</span>
-            <span>CONFIRM</span>
-            <kbd>ENTER</kbd>
-          </button>
-
-          <button type="button" class="select-ctrl-btn" id="select-ctrl-stance">
-            <span class="ctrl-badge ctrl-badge--sq">□</span>
-            <span id="select-stance-label">STANCE: IDLE 1</span>
-            <kbd>Q</kbd>
-          </button>
-
-          <button type="button" class="select-ctrl-btn" id="select-ctrl-back">
-            <span class="ctrl-badge ctrl-badge--o">○</span>
-            <span>BACK</span>
-            <kbd>ESC</kbd>
-          </button>
-
-          <button type="button" class="select-ctrl-btn" id="select-ctrl-stage">
-            <span id="select-stage-label">STAGE: CYBER ARENA</span>
-            <kbd>T</kbd>
-          </button>
-
-          <button type="button" class="select-ctrl-btn" id="select-ctrl-guide">
-            <span>? CONTROLS</span>
-            <kbd>H</kbd>
-          </button>
-
-          <button type="button" class="select-ctrl-btn select-ctrl-btn--fight" id="select-ctrl-fight">
-            <span class="ctrl-badge ctrl-badge--tri">△</span>
-            <span>FIGHT NOW</span>
-            <kbd>F</kbd>
-          </button>
-        </footer>
       </div>
 
       <!-- Minimal Bottom Utility Controls -->

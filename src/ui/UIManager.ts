@@ -189,12 +189,6 @@ export class UIManager {
   private readonly selectP1Meta = document.getElementById('select-p1-meta')!;
   private readonly selectCpuMeta = document.getElementById('select-cpu-meta')!;
   private readonly selectPromptText = document.getElementById('select-prompt-text')!;
-  private readonly selectStanceLabel = document.getElementById('select-stance-label')!;
-  private readonly selectCtrlConfirm = document.getElementById('select-ctrl-confirm')!;
-  private readonly selectCtrlStance = document.getElementById('select-ctrl-stance')!;
-  private readonly selectCtrlBack = document.getElementById('select-ctrl-back')!;
-  private readonly selectCtrlStage = document.getElementById('select-ctrl-stage');
-  private readonly selectStageLabel = document.getElementById('select-stage-label');
   private readonly selectCtrlFight = document.getElementById('select-ctrl-fight')!;
   private readonly selectP1Loading = document.getElementById('select-p1-loading');
   private readonly selectP1LoadingText = document.getElementById('select-p1-loading-text');
@@ -252,7 +246,6 @@ export class UIManager {
     this.handlers = handlers;
     this.availableStageIds = getAvailableStageIds();
     this.activeStageId = this.availableStageIds[0] ?? 'stage-1';
-    this.selectCtrlStage?.classList.toggle('hidden', this.availableStageIds.length <= 1);
     this.buildRosterGrid();
     this.buildStagePills();
     this.populateAvatars();
@@ -524,26 +517,6 @@ export class UIManager {
         this.cancelPendingHoverPreview();
         this.confirmRosterSlot(slotId);
       });
-    });
-
-    this.selectCtrlConfirm.addEventListener('click', () => {
-      unlockAndBlur(this.selectCtrlConfirm as HTMLElement);
-      this.confirmRosterSlot(this.selectCursorSlot);
-    });
-
-    this.selectCtrlStance.addEventListener('click', () => {
-      unlockAndBlur(this.selectCtrlStance as HTMLElement);
-      this.toggleActiveSideStance();
-    });
-
-    this.selectCtrlBack.addEventListener('click', () => {
-      unlockAndBlur(this.selectCtrlBack as HTMLElement);
-      this.handleSelectBack();
-    });
-
-    this.selectCtrlStage?.addEventListener('click', () => {
-      unlockAndBlur(this.selectCtrlStage as HTMLElement);
-      this.cycleStageSelection();
     });
 
     this.selectDifficultyPills
@@ -921,11 +894,6 @@ export class UIManager {
     this.selectCpuIdle1.classList.toggle('stance-pill--active', this.selectCpuIdle === 'idle-1');
     this.selectCpuIdle2.classList.toggle('stance-pill--active', this.selectCpuIdle === 'idle-2');
 
-    const activeVariant = this.selectActiveSlot === 'p1' ? this.selectP1Idle : this.selectCpuIdle;
-    this.selectStanceLabel.textContent = `STANCE: ${activeVariant.toUpperCase().replace('-', ' ')}`;
-    if (this.selectStageLabel) {
-      this.selectStageLabel.textContent = `STAGE: ${getStageDisplayName(this.activeStageId).toUpperCase()}`;
-    }
     this.syncSetupPills();
 
     const p1CursorSlot: RosterSlotId =
@@ -1278,9 +1246,6 @@ export class UIManager {
 
     if (state.activeStageId) {
       this.activeStageId = state.activeStageId;
-      if (this.selectStageLabel) {
-        this.selectStageLabel.textContent = `STAGE: ${getStageDisplayName(this.activeStageId).toUpperCase()}`;
-      }
     }
 
     if (state.difficulty || state.activeStageId) {

@@ -726,8 +726,109 @@ body,
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
   width: 100%;
+}
+
+.select-stage-center-cta {
+  align-self: end;
+  justify-self: center;
+  padding: 0 12px 14px;
+  z-index: 4;
+}
+
+.select-start-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: 2px solid #fef08a;
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.96) 0%, rgba(234, 88, 12, 0.96) 52%, rgba(37, 99, 235, 0.96) 100%);
+  color: #ffffff;
+  font-family: var(--font-arcade);
+  font-size: clamp(18px, 2vw, 24px);
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.72);
+  box-shadow:
+    0 8px 26px rgba(0, 0, 0, 0.65),
+    0 0 24px rgba(250, 204, 21, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.18s ease;
+}
+
+.select-start-cta:hover {
+  transform: translateY(-2px) scale(1.03);
+  filter: brightness(1.12);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.75),
+    0 0 32px rgba(250, 204, 21, 0.72),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.select-start-cta:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.select-start-cta-icon {
+  font-size: 1.05em;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.select-start-cta kbd {
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: rgba(9, 13, 22, 0.72);
+  border: 1px solid rgba(254, 240, 138, 0.6);
+  color: #fde047;
+  font-family: var(--font-arcade);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.select-mode-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.select-guide-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(15, 23, 42, 0.72);
+  color: #cbd5e1;
+  font-family: var(--font-arcade);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  cursor: pointer;
+  transition: border-color 0.14s ease, color 0.14s ease, background 0.14s ease;
+}
+
+.select-guide-pill:hover {
+  border-color: rgba(250, 204, 21, 0.65);
+  color: #fef08a;
+  background: rgba(30, 41, 59, 0.88);
+}
+
+.select-guide-pill kbd {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-family: var(--font-arcade);
+  font-size: 10px;
 }
 
 .select-stage-side {
@@ -1063,8 +1164,7 @@ body,
   width: 100%;
   background: linear-gradient(180deg, rgba(10, 14, 24, 0.88) 0%, rgba(5, 8, 15, 0.96) 100%);
   border-top: 1px solid rgba(255, 255, 255, 0.16);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 12px 24px 14px;
+  padding: 12px 24px 22px;
   display: flex;
   justify-content: center;
 }
@@ -1221,106 +1321,6 @@ body,
   border: 1px solid #bfdbfe;
 }
 
-/* --- Bottom Tekken Control Legend Footer --- */
-.select-footer-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 18px;
-  width: 100%;
-  padding: 7px clamp(16px, 4vw, 44px);
-  background: rgba(3, 5, 11, 0.96);
-  color: #e2e8f0;
-  font-family: var(--font-arcade);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1.1px;
-}
-
-.select-ctrl-item,
-.select-ctrl-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #e2e8f0;
-  font-family: var(--font-arcade);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1.1px;
-}
-
-.select-ctrl-btn {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 3px 8px;
-  cursor: pointer;
-  transition: background 0.14s ease, border-color 0.14s ease, transform 0.1s ease;
-}
-
-.select-ctrl-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.24);
-}
-
-.select-ctrl-btn--fight {
-  margin-left: auto;
-  background: linear-gradient(90deg, rgba(225, 29, 72, 0.85), rgba(37, 99, 235, 0.85));
-  border-color: rgba(255, 255, 255, 0.45);
-  color: #ffffff;
-  padding: 4px 14px;
-}
-
-.select-ctrl-btn--fight:hover {
-  filter: brightness(1.15);
-  transform: translateY(-1px);
-}
-
-.select-ctrl-item kbd,
-.select-ctrl-btn kbd {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 3px;
-  padding: 0 5px;
-  font-family: var(--font-arcade);
-  font-size: 11px;
-  color: #cbd5e1;
-}
-
-.ctrl-badge {
-  display: inline-grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 800;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1.5px solid rgba(255, 255, 255, 0.72);
-  color: #ffffff;
-}
-
-.ctrl-badge--x {
-  border-color: #60a5fa;
-  color: #93c5fd;
-}
-
-.ctrl-badge--sq {
-  border-color: #f472b6;
-  color: #fbcfe8;
-}
-
-.ctrl-badge--o {
-  border-color: #f87171;
-  color: #fecaca;
-}
-
-.ctrl-badge--tri {
-  border-color: #34d399;
-  color: #a7f3d0;
-}
-
 /* =========================================================
    BOTTOM UTILITY CONTROLS
    ========================================================= */
@@ -1400,13 +1400,15 @@ body,
     height: 94px;
   }
 
-  .select-footer-bar {
-    gap: 8px;
-    justify-content: center;
+  .select-stage-center-cta {
+    padding: 0 6px 10px;
   }
 
-  .select-ctrl-btn--fight {
-    margin-left: 0;
+  .select-start-cta {
+    padding: 8px 14px;
+    font-size: 15px;
+    letter-spacing: 1.2px;
+    gap: 7px;
   }
 
   .signature-meter-box {
