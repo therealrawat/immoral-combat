@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { normalizeMixamoBoneName } from '../characters/AnimationRetargeter';
+import { disposeObject3D } from '../utils/disposeThree';
+
+export { disposeObject3D };
 
 export const DEFAULT_HAND_BONE_NAMES = [
   'mixamorigRightHand',
@@ -9,32 +12,6 @@ export const DEFAULT_HAND_BONE_NAMES = [
   'RightHandIndex1',
   'ArmR',
 ] as const;
-
-/**
- * Disposes every BufferGeometry, Material, and Texture attached to a transient 3D subtree.
- */
-export function disposeObject3D(root: THREE.Object3D): void {
-  root.traverse((obj) => {
-    const renderable = obj as THREE.Object3D & {
-      geometry?: THREE.BufferGeometry;
-      material?: THREE.Material | THREE.Material[];
-    };
-    renderable.geometry?.dispose();
-    if (!renderable.material) return;
-
-    const materials = Array.isArray(renderable.material)
-      ? renderable.material
-      : [renderable.material];
-    for (const mat of materials) {
-      for (const value of Object.values(mat as unknown as Record<string, unknown>)) {
-        if (value instanceof THREE.Texture) {
-          value.dispose();
-        }
-      }
-      mat.dispose();
-    }
-  });
-}
 
 /**
  * Resolves a character's right hand bone across Mixamo, Blender, or Avaturn skeletons.

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { assetLoadingManager, createManagedGLTFLoader } from '../core/AssetLoadingManager';
 import {
   extractSkeletonRestProfile,
   retargetClipToCharacter,
@@ -362,7 +363,7 @@ export class SharedAnimationManager {
   private readonly activeCharacters = new Set<RetargetedCharacter>();
 
   constructor(options: SharedAnimationManagerOptions = {}) {
-    this.loader = new GLTFLoader(options.loadingManager);
+    this.loader = createManagedGLTFLoader(options.loadingManager ?? assetLoadingManager);
     this.charactersBasePath = (options.charactersBasePath ?? '/models/characters').replace(/\/+$/, '');
     this.animationsBasePath = (options.animationsBasePath ?? '/models/animations').replace(/\/+$/, '');
     this.defaultIdleAnimation = options.defaultIdleAnimation ?? 'idle';
@@ -536,39 +537,45 @@ export class SharedAnimationManager {
     try {
       let gltf: { animations: THREE.AnimationClip[]; scene?: THREE.Group };
       if (typeof fetch === 'function') {
-        const res = await fetch(url);
-        if (res.ok) {
-          const ab = await res.arrayBuffer();
-          const stripped = stripGLBVisualChunks(ab);
-          gltf = await this.loader.parseAsync(stripped ?? ab, '');
+          this.loader.manager.itemStart(url);
+          try {
+            const res = await fetch(url);
+            if (res.ok) {
+              const ab = await res.arrayBuffer();
+              const stripped = stripGLBVisualChunks(ab);
+              gltf = await this.loader.parseAsync(stripped ?? ab, '');
+            } else {
+              this.loader.manager.itemError(url);
+              gltf = await this.loader.loadAsync(url);
+            }
+          } finally {
+            this.loader.manager.itemEnd(url);
+          }
         } else {
           gltf = await this.loader.loadAsync(url);
         }
-      } else {
-        gltf = await this.loader.loadAsync(url);
-      }
 
-      const clip = gltf.animations[0];
-      if (!clip) {
-        console.warn(`SharedAnimationManager: no animations found in "${url}".`);
+        const clip = gltf.animations[0];
+        if (!clip) {
+          console.warn(`SharedAnimationManager: no animations found in "${url}".`);
+          return null;
+        }
+
+        const sourceRoot = gltf.scene ?? null;
+        const sourceProfile = sourceRoot ? extractSkeletonRestProfile(sourceRoot) : null;
+
+        return {
+          key,
+          url,
+          clip,
+          sourceRoot,
+          sourceProfile,
+        };
+      } catch (err) {
+        console.warn(`SharedAnimationManager: failed loading animation "${url}":`, err);
         return null;
       }
-
-      const sourceRoot = gltf.scene ?? null;
-      const sourceProfile = sourceRoot ? extractSkeletonRestProfile(sourceRoot) : null;
-
-      return {
-        key,
-        url,
-        clip,
-        sourceRoot,
-        sourceProfile,
-      };
-    } catch (err) {
-      console.warn(`SharedAnimationManager: failed loading animation "${url}":`, err);
-      return null;
     }
-  }
 
   private prepareCharacterScene(scene: THREE.Group, options: LoadCharacterOptions): void {
     const castShadow = options.castShadow ?? true;

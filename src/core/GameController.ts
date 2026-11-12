@@ -17,14 +17,21 @@ import { EffectsManager } from '../effects/EffectsManager';
 import { CharacterId, DifficultyLevel, FighterRig, SelectIdleVariant } from '../types/game';
 import {
   CINEMATIC_FREEZE_TIME_SCALE,
+  disposeCachedCyberpunkLaptop,
   executeCharacterSignature,
   getCharacterSignatures,
   preloadCyberpunkLaptop,
   SignatureMoveContext,
 } from '../signatures';
+import { sharedAnimationManager } from '../characters/SharedAnimationManager';
 import { CharacterSelectStage } from '../ui/CharacterSelectStage';
 import { UIManager } from '../ui/UIManager';
 import { StageManager, getStageDisplayName } from './ArenaBuilder';
+import {
+  disposeAssetLoadingHub,
+  preloadDracoDecoder,
+  subscribeAssetProgress,
+} from './AssetLoadingManager';
 import { FighterParticipantConfig, GameManager, PlayerSlot } from './GameManager';
 import { SceneManager } from './SceneManager';
 
@@ -262,11 +269,37 @@ export class GameController {
   private readonly combatLoadPromises = new Map<CharacterId, Promise<void>>();
   private readonly baseSwapPromises = new Map<CharacterId, Promise<THREE.Group | null>>();
   private matchLoadToken = 0;
+  private unsubscribeAssetProgress?: () => void;
+  private maxInitialProgressPct = 10;
+  private maxMatchProgressPct = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.sceneManager = new SceneManager(canvas);
     this.sound = new SoundManager();
     this.stageManager = new StageManager(this.sceneManager);
+    preloadDracoDecoder();
+
+    this.unsubscribeAssetProgress = subscribeAssetProgress((snapshot) => {
+      if (this.disposed || !snapshot.active) return;
+      if (this.ui.isMatchLoaderOpen()) {
+        this.maxMatchProgressPct = Math.max(
+          this.maxMatchProgressPct,
+          Math.min(99, snapshot.percent)
+        );
+        this.ui.setMatchLoaderState(
+          true,
+          this.maxMatchProgressPct,
+          `Loading ${snapshot.category}: ${snapshot.percent}%`
+        );
+      } else if (this.ui.isInitialLoaderOpen()) {
+        const mapped = Math.min(94, Math.round(12 + snapshot.percent * 0.8));
+        this.maxInitialProgressPct = Math.max(this.maxInitialProgressPct, mapped);
+        this.ui.setInitialLoaderProgress(
+          this.maxInitialProgressPct,
+          `Loading ${snapshot.category}: ${snapshot.percent}%`
+        );
+      }
+    });
 
     this.selectStage = new CharacterSelectStage(
       canvas.clientWidth || window.innerWidth,
@@ -290,67 +323,10 @@ export class GameController {
     this.physics = new PhysicsCombatSystem();
     this.effects = new EffectsManager(this.sceneManager.scene);
 
-    const allRigs: FighterRig[] = CHARACTER_IDS.map((id) => {
-      const isLeft = id === this.leftFighterId;
-      const isRight = id === this.rightFighterId;
-      const rig = CharacterFactory.createFighter(
-        id,
-        new THREE.Vector3(isLeft ? -1.15 : 1.15, 0, 0),
-        isLeft ? 1 : -1
-      );
-      rig.root.visible = isLeft || isRight;
-      return rig;
-    });
-    for (const rig of allRigs) {
-      this.rigs.set(rig.id, rig);
-      if (rig.root.visible) {
-        this.sceneManager.scene.add(rig.root);
-      }
-      this.physics.registerFighter(rig);
-
-      const anim = new AnimationController(rig, (finishedState) => {
-        if (
-          finishedState === 'HIT' ||
-          finishedState === 'BLUSH' ||
-          finishedState === 'GET_UP'
-        ) {
-          this.physics.setKnockedDown(rig.id, false);
-        }
-        if (
-          finishedState === 'POSE' ||
-          finishedState === 'LOUNGE' ||
-          finishedState === 'DANCE' ||
-          finishedState === 'CHAMP_POSE' ||
-          finishedState === 'ENTRY' ||
-          finishedState === 'HIT'
-        ) {
-          this.physics.setLocomotionState(rig.id, false, null);
-        }
-        if (
-          rig.id === 'chinu' &&
-          (finishedState === 'POSE' || finishedState === 'DANCE' || finishedState === 'CHAMP_POSE')
-        ) {
-          this.resetPriyanshuAdmire();
-        }
-        if (
-          finishedState === 'PUNCH' ||
-          finishedState === 'KICK' ||
-          finishedState === 'SIGNATURE' ||
-          finishedState === 'MUAY_THAI' ||
-          finishedState === 'POSE' ||
-          finishedState === 'LOUNGE' ||
-          finishedState === 'DANCE' ||
-          finishedState === 'CHAMP_POSE' ||
-          finishedState === 'ENTRY' ||
-          finishedState === 'KISS' ||
-          finishedState === 'HIT' ||
-          finishedState === 'BLUSH' ||
-          finishedState === 'GET_UP'
-        ) {
-          anim.transitionTo('IDLE', 0.08);
-        }
-      });
-      this.anims.set(rig.id, anim);
+      for (const id of CHARACTER_IDS) {
+        const isLeft = id === this.leftFighterId;
+        const isRight = id === this.rightFighterId;
+      this.registerCombatRig(id, isLeft || isRight, isLeft ? 1 : -1);
     }
 
     this.physics.setActivePair(this.leftFighterId, this.rightFighterId, false);
@@ -542,6 +518,86 @@ export class GameController {
     this.ui.hideInitialLoader();
   }
 
+  private registerCombatRig(id: CharacterId, visible: boolean, facing: 1 | -1): void {
+    const rig = CharacterFactory.createFighter(
+      id,
+      new THREE.Vector3(facing === 1 ? -1.15 : 1.15, 0, 0),
+      facing
+    );
+    rig.root.visible = visible;
+    this.rigs.set(id, rig);
+    if (visible) {
+      this.sceneManager.scene.add(rig.root);
+    }
+    this.physics.registerFighter(rig);
+
+    const anim = new AnimationController(rig, (finishedState) => {
+      if (
+        finishedState === 'HIT' ||
+        finishedState === 'BLUSH' ||
+        finishedState === 'GET_UP'
+      ) {
+        this.physics.setKnockedDown(rig.id, false);
+      }
+      if (
+        finishedState === 'POSE' ||
+        finishedState === 'LOUNGE' ||
+        finishedState === 'DANCE' ||
+        finishedState === 'CHAMP_POSE' ||
+        finishedState === 'ENTRY' ||
+        finishedState === 'HIT'
+      ) {
+        this.physics.setLocomotionState(rig.id, false, null);
+      }
+      if (
+        rig.id === 'chinu' &&
+        (finishedState === 'POSE' || finishedState === 'DANCE' || finishedState === 'CHAMP_POSE')
+      ) {
+        this.resetPriyanshuAdmire();
+      }
+      if (
+        finishedState === 'PUNCH' ||
+        finishedState === 'KICK' ||
+        finishedState === 'SIGNATURE' ||
+        finishedState === 'MUAY_THAI' ||
+        finishedState === 'POSE' ||
+        finishedState === 'LOUNGE' ||
+        finishedState === 'DANCE' ||
+        finishedState === 'CHAMP_POSE' ||
+        finishedState === 'ENTRY' ||
+        finishedState === 'KISS' ||
+        finishedState === 'HIT' ||
+        finishedState === 'BLUSH' ||
+        finishedState === 'GET_UP'
+      ) {
+        anim.transitionTo('IDLE', 0.08);
+      }
+    });
+    this.anims.set(id, anim);
+  }
+
+  private releaseInactiveFighterResources(activeIds: Set<CharacterId>): void {
+    for (const id of CHARACTER_IDS) {
+      if (activeIds.has(id)) continue;
+      if (!this.loadedCombatCharacters.has(id) && !this.baseSwapPromises.has(id)) continue;
+
+      const oldAnim = this.anims.get(id);
+      oldAnim?.dispose();
+      this.anims.delete(id);
+
+      const oldRig = this.rigs.get(id);
+      if (oldRig) {
+        CharacterFactory.disposeRig(oldRig);
+        this.rigs.delete(id);
+      }
+      CharacterFactory.disposeCharacterTemplate(id);
+      this.loadedCombatCharacters.delete(id);
+      this.baseSwapPromises.delete(id);
+
+      this.registerCombatRig(id, false, -1);
+    }
+  }
+
   private syncSceneRigsVisibility(leftId: CharacterId, rightId: CharacterId): void {
     for (const [id, rig] of this.rigs.entries()) {
       const isActive = id === leftId || id === rightId;
@@ -620,10 +676,11 @@ export class GameController {
     if (needStage) missingNames.push(stageLabel);
 
     this.gameManager.pause();
+    this.maxMatchProgressPct = 8;
     this.ui.setMatchLoaderState(
       true,
       8,
-      `Streaming ${missingNames.join(', ')}...`,
+      `Loading ${needStage && !needLeft && !needRight ? 'Stage Data' : 'Character Data'}: 8%`,
       `${p1Name} vs ${p2Name} • ${stageLabel}`
     );
 
@@ -639,63 +696,60 @@ export class GameController {
       stage: needStage ? 0 : 1,
     };
 
-    const updateBar = (statusText?: string) => {
-      if (this.disposed || token !== this.matchLoadToken) return;
-      const done =
-        progress.left * weights.left +
-        progress.right * weights.right +
-        progress.stage * weights.stage;
-      const pct = Math.min(99, Math.max(8, Math.round(8 + (done / totalWeight) * 90)));
-      this.ui.setMatchLoaderState(true, pct, statusText);
-    };
+      const updateBar = (category: 'Character Data' | 'Stage Data', labelName: string) => {
+        if (this.disposed || token !== this.matchLoadToken) return;
+        const done =
+          progress.left * weights.left +
+          progress.right * weights.right +
+          progress.stage * weights.stage;
+        const pct = Math.min(99, Math.max(8, Math.round(8 + (done / totalWeight) * 90)));
+        this.maxMatchProgressPct = Math.max(this.maxMatchProgressPct, pct);
+        this.ui.setMatchLoaderState(
+          true,
+          this.maxMatchProgressPct,
+          `Loading ${category}: ${this.maxMatchProgressPct}% (${labelName})`
+        );
+      };
 
-    const tasks: Promise<void>[] = [];
-    if (needLeft) {
-      tasks.push(
-        this.ensureCharacterCombatLoaded(leftId, (r) => {
-          progress.left = r;
-          updateBar(
-            r >= 1
-              ? `${FIGHTER_META[leftId].displayName} combat moves ready`
-              : `Streaming ${FIGHTER_META[leftId].displayName} combat animations...`
-          );
-        })
-      );
-    }
-    if (needRight) {
-      tasks.push(
-        this.ensureCharacterCombatLoaded(rightId, (r) => {
-          progress.right = r;
-          updateBar(
-            r >= 1
-              ? `${FIGHTER_META[rightId].displayName} combat moves ready`
-              : `Streaming ${FIGHTER_META[rightId].displayName} combat animations...`
-          );
-        })
-      );
-    }
-    if (needStage) {
-      tasks.push(
-        this.stageManager.loadStage(stageId, (r) => {
-          progress.stage = r;
-          updateBar(r >= 1 ? `${stageLabel} loaded` : `Streaming ${stageLabel}...`);
-        })
-      );
-    }
-
-    try {
-      await Promise.all(tasks);
-      if (this.disposed || token !== this.matchLoadToken) {
-        return false;
+      const tasks: Promise<void>[] = [];
+      if (needLeft) {
+        tasks.push(
+          this.ensureCharacterCombatLoaded(leftId, (r) => {
+            progress.left = r;
+            updateBar('Character Data', FIGHTER_META[leftId].displayName);
+          })
+        );
       }
-      this.ui.setMatchLoaderState(true, 100, `${stageLabel} & fighters ready!`);
-      return true;
-    } finally {
-      if (!this.disposed && token === this.matchLoadToken) {
-        this.ui.setMatchLoaderState(false, 100);
+      if (needRight) {
+        tasks.push(
+          this.ensureCharacterCombatLoaded(rightId, (r) => {
+            progress.right = r;
+            updateBar('Character Data', FIGHTER_META[rightId].displayName);
+          })
+        );
+      }
+      if (needStage) {
+        tasks.push(
+          this.stageManager.loadStage(stageId, (r) => {
+            progress.stage = r;
+            updateBar('Stage Data', stageLabel);
+          })
+        );
+      }
+
+      try {
+        await Promise.all(tasks);
+        if (this.disposed || token !== this.matchLoadToken) {
+          return false;
+        }
+        this.ui.setMatchLoaderState(true, 100, `${stageLabel} & fighters ready!`);
+        return true;
+      } finally {
+        if (!this.disposed && token === this.matchLoadToken) {
+          this.ui.setMatchLoaderState(false, 100);
+        }
       }
     }
-  }
 
   private async prepareMatchAndStart(startNewMatch: boolean): Promise<void> {
     const leftId = this.leftFighterId;
@@ -991,11 +1045,11 @@ export class GameController {
       const moveInput = this.physics.getMoveInput(id);
       const isMoving = Boolean(
         !this.isCinematicActive &&
-          !this.gameManager.isControlsLocked() &&
-          !this.physics.isKnockedDown(id) &&
-          !this.physics.isMovementPaused(id) &&
-          moveInput &&
-          moveInput.lengthSq() > 0.001
+        !this.gameManager.isControlsLocked() &&
+        !this.physics.isKnockedDown(id) &&
+        !this.physics.isMovementPaused(id) &&
+        moveInput &&
+        moveInput.lengthSq() > 0.001
       );
       const canStartRun =
         currentState === 'IDLE' ||
@@ -1072,6 +1126,9 @@ export class GameController {
     this.leftFighterId = newLeft;
     this.rightFighterId = newRight;
 
+    if (pairChanged) {
+      this.releaseInactiveFighterResources(new Set([newLeft, newRight]));
+    }
     this.syncSceneRigsVisibility(newLeft, newRight);
     for (const [id] of this.rigs.entries()) {
       this.physics.setMoveInput(id, 0, 0);
@@ -2602,6 +2659,8 @@ export class GameController {
   public dispose(): void {
     this.disposed = true;
     this.matchLoadToken++;
+    this.unsubscribeAssetProgress?.();
+    this.unsubscribeAssetProgress = undefined;
     this.ui.setMatchLoaderState(false);
     this.ui.hideInitialLoader();
     this.gameManager.dispose();
@@ -2611,6 +2670,18 @@ export class GameController {
     for (const id of this.activeTimeouts) {
       clearTimeout(id);
     }
+    for (const anim of this.anims.values()) {
+      anim.dispose();
+    }
+    this.anims.clear();
+    for (const rig of this.rigs.values()) {
+      CharacterFactory.disposeRig(rig, true);
+    }
+    this.rigs.clear();
+    CharacterFactory.disposeAllCachedModels();
+    disposeCachedCyberpunkLaptop();
+    sharedAnimationManager.dispose();
+    disposeAssetLoadingHub();
     this.stageManager.dispose();
     this.selectStage.dispose();
     this.ui.dispose();

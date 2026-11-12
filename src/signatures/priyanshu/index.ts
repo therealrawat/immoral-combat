@@ -4,6 +4,7 @@ import type { SignatureMoveDefinition } from '../types';
 export { poisonHackSignature };
 export {
   CyberpunkPoisonSpecialMove,
+  disposeCachedCyberpunkLaptop,
   preloadCyberpunkLaptop,
 } from './CyberpunkPoisonSpecialMove';
 

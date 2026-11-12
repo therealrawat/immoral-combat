@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { getCharacterDisplayName } from './characterNames';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { createManagedGLTFLoader, reportAssetByteProgress } from '../core/AssetLoadingManager';
+import { disposeObject3D } from '../utils/disposeThree';
 import { extractSkeletonRestProfile, retargetClipToCharacter } from './AnimationRetargeter';
 import { createHumanoidGLBClips } from './GLBClipsBuilder';
 import {
@@ -273,6 +274,7 @@ function makeStandardMaterial(color: number, roughness = 0.8): THREE.MeshStandar
  */
 export class CharacterFactory {
   private static readonly baseModelCache = new Map<CharacterId, Promise<THREE.Group | null>>();
+  private static readonly baseModelScenes = new Map<CharacterId, THREE.Group>();
 
   public static createFighter(
     id: CharacterId,
@@ -290,6 +292,7 @@ export class CharacterFactory {
 
     const modelRoot = new THREE.Group();
     modelRoot.name = `ModelRoot_${id}`;
+    modelRoot.userData.isProceduralRig = true;
     modelRoot.rotation.y = facingDirection === 1 ? Math.PI / 2 : -Math.PI / 2;
     modelRoot.scale.setScalar(heightRatio);
     root.add(modelRoot);
@@ -575,6 +578,7 @@ export class CharacterFactory {
     if (!pending) {
       pending = this.fetchBaseCharacterTemplate(characterId).then((scene) => {
         if (scene) {
+          this.baseModelScenes.set(characterId, scene);
           this.resolvedBaseModels.add(characterId);
         }
         return scene;
@@ -589,7 +593,7 @@ export class CharacterFactory {
   private static async fetchBaseCharacterTemplate(
     characterId: CharacterId
   ): Promise<THREE.Group | null> {
-    const loader = new GLTFLoader();
+    const loader = createManagedGLTFLoader();
     const configMap: Record<
       CharacterId,
       { urls: string[]; name: string; fallbackScale: number; groundY: number }
@@ -630,7 +634,11 @@ export class CharacterFactory {
 
     for (const url of config.urls) {
       try {
-        const gltf = await loader.loadAsync(url);
+        const gltf = await loader.loadAsync(url, (evt) => {
+          if (evt.lengthComputable && evt.total > 0) {
+            reportAssetByteProgress(url, evt.loaded / evt.total);
+          }
+        });
         const scene = gltf.scene;
         scene.name = config.name;
         scene.updateMatrixWorld(true);
@@ -789,7 +797,22 @@ export class CharacterFactory {
   }
 
   public static swapWithGLBModel(rig: FighterRig, gltfScene: THREE.Group): void {
+    // Detach persistent combat anchors before disposing the previous procedural/cloned meshes
+    rig.headAnchor.removeFromParent();
+    rig.fistAnchor.removeFromParent();
+    rig.footAnchor.removeFromParent();
+    rig.leftEyeAnchor.removeFromParent();
+    rig.rightEyeAnchor.removeFromParent();
+
+    const wasProcedural = Boolean(rig.modelRoot.userData.isProceduralRig);
+    disposeObject3D(rig.modelRoot, {
+      disposeGeometries: wasProcedural,
+      disposeMaterials: wasProcedural,
+      disposeTextures: wasProcedural,
+      disposeSkeletons: true,
+    });
     rig.modelRoot.clear();
+    rig.modelRoot.userData.isProceduralRig = false;
     rig.modelRoot.scale.setScalar(1);
     rig.bodyMeshes.length = 0;
 
@@ -838,6 +861,47 @@ export class CharacterFactory {
     }
 
     rig.modelRoot.add(gltfScene);
+  }
+
+  /**
+   * Disposes geometries, materials, textures, and SkinnedMesh skeletons owned by a fighter rig.
+   */
+  public static disposeRig(rig: FighterRig, disposeSharedMeshResources = false): void {
+    rig.root.removeFromParent();
+    disposeObject3D(rig.hurtboxMesh);
+    const ownsMeshes = disposeSharedMeshResources || Boolean(rig.modelRoot.userData.isProceduralRig);
+    disposeObject3D(rig.modelRoot, {
+      disposeGeometries: ownsMeshes,
+      disposeMaterials: ownsMeshes,
+      disposeTextures: ownsMeshes,
+      disposeSkeletons: true,
+    });
+    rig.modelRoot.clear();
+    rig.bodyMeshes.length = 0;
+  }
+
+  /**
+   * Disposes and evicts a cached base GLB template when a character is swapped out to free VRAM.
+   */
+  public static disposeCharacterTemplate(characterId: CharacterId): void {
+    const cachedScene = this.baseModelScenes.get(characterId);
+    if (cachedScene) {
+      disposeObject3D(cachedScene);
+      this.baseModelScenes.delete(characterId);
+    }
+    this.baseModelCache.delete(characterId);
+    this.resolvedBaseModels.delete(characterId);
+  }
+
+  /**
+   * Disposes every cached character template scene on full application teardown.
+   */
+  public static disposeAllCachedModels(): void {
+    for (const id of [...this.baseModelScenes.keys()]) {
+      this.disposeCharacterTemplate(id);
+    }
+    this.baseModelCache.clear();
+    this.resolvedBaseModels.clear();
   }
 
   public static getEyeOriginsWorld(rig: FighterRig): { left: THREE.Vector3; right: THREE.Vector3 } {

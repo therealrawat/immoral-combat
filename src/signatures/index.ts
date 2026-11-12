@@ -12,7 +12,11 @@ export type {
   SignatureMoveMetadata,
 } from './types';
 export { CINEMATIC_FREEZE_TIME_SCALE } from './sharedHelpers';
-export { CyberpunkPoisonSpecialMove, preloadCyberpunkLaptop } from './priyanshu';
+export {
+  CyberpunkPoisonSpecialMove,
+  disposeCachedCyberpunkLaptop,
+  preloadCyberpunkLaptop,
+} from './priyanshu';
 export { ModijiSpecialMoves } from './modiji';
 export type { ModijiSpecialMovesOptions } from './modiji';
 export { PutinSpecialMoves } from './putin';

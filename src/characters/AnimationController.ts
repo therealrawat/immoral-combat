@@ -188,4 +188,11 @@ export class AnimationController {
   public update(deltaSeconds: number): void {
     this.mixer.update(deltaSeconds);
   }
+
+  public dispose(): void {
+    this.mixer.stopAllAction();
+    this.mixer.uncacheRoot(this.rootObject);
+    this.actions.clear();
+    this.clipSpeeds.clear();
+  }
 }

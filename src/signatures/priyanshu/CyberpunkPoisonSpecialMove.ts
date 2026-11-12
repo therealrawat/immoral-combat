@@ -1,8 +1,8 @@
 import gsap from 'gsap';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { normalizeMixamoBoneName } from '../../characters/AnimationRetargeter';
 import { getObjectModelUrl } from '../../characters/ModelAssetRegistry';
+import { createManagedGLTFLoader, reportAssetByteProgress } from '../../core/AssetLoadingManager';
 import { BaseSpecialMoves, disposeObject3D } from '../specialMoveUtils';
 
 const LAPTOP_OPEN_DURATION = 0.42;
@@ -24,7 +24,8 @@ const CYBER_HACK_QUIPS = [
 ] as const;
 
 let cachedLaptopTemplatePromise: Promise<THREE.Group | null> | null = null;
-const sharedLaptopLoader = new GLTFLoader();
+let cachedLaptopTemplateScene: THREE.Group | null = null;
+const sharedLaptopLoader = createManagedGLTFLoader();
 
 function createProceduralFallbackLaptop(): THREE.Group {
   const root = new THREE.Group();
@@ -86,15 +87,34 @@ export function preloadCyberpunkLaptop(): Promise<THREE.Group | null> {
   }
 
   cachedLaptopTemplatePromise = sharedLaptopLoader
-    .loadAsync(url)
-    .then((gltf) => gltf.scene)
+    .loadAsync(url, (evt) => {
+      if (evt.lengthComputable && evt.total > 0) {
+        reportAssetByteProgress(url, evt.loaded / evt.total);
+      }
+    })
+    .then((gltf) => {
+      cachedLaptopTemplateScene = gltf.scene;
+      return gltf.scene;
+    })
     .catch((err) => {
       console.warn('[CyberpunkPoisonSpecialMove] Failed loading cyberpunk_laptop.glb, using fallback:', err);
       cachedLaptopTemplatePromise = null;
+      cachedLaptopTemplateScene = null;
       return null;
     });
 
   return cachedLaptopTemplatePromise;
+}
+
+/**
+ * Releases cached cyberpunk laptop template geometries, materials, and textures.
+ */
+export function disposeCachedCyberpunkLaptop(): void {
+  if (cachedLaptopTemplateScene) {
+    disposeObject3D(cachedLaptopTemplateScene);
+    cachedLaptopTemplateScene = null;
+  }
+  cachedLaptopTemplatePromise = null;
 }
 
 function createPoisonCloudTexture(): THREE.CanvasTexture | null {

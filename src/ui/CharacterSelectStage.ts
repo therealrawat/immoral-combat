@@ -12,6 +12,7 @@ import {
 } from '../characters/ModelAssetRegistry';
 import { sharedAnimationManager } from '../characters/SharedAnimationManager';
 import { CharacterId, SelectIdleVariant } from '../types/game';
+import { disposeObject3D } from '../utils/disposeThree';
 
 export type SelectSide = 'p1' | 'cpu';
 
@@ -81,6 +82,7 @@ interface ShowcaseSlot {
   action: THREE.AnimationAction | null;
   loadToken: number;
   isStaticFloat: boolean;
+  isProcedural: boolean;
   elapsed: number;
   baseOffsetY: number;
 }
@@ -331,6 +333,7 @@ export class CharacterSelectStage {
         action: null,
         loadToken: 0,
         isStaticFloat: false,
+        isProcedural: false,
         elapsed: 0,
         baseOffsetY: 0,
       },
@@ -345,6 +348,7 @@ export class CharacterSelectStage {
         action: null,
         loadToken: 0,
         isStaticFloat: false,
+        isProcedural: false,
         elapsed: 0,
         baseOffsetY: 0,
       },
@@ -655,6 +659,7 @@ export class CharacterSelectStage {
     wrapper.scale.setScalar(config.scaleMultiplier);
     wrapper.add(glbScene);
     slot.container.add(wrapper);
+    slot.isProcedural = false;
 
     slot.baseOffsetY = tuning.offsetY;
     slot.container.position.set(slot.baseX + tuning.offsetX, tuning.offsetY, tuning.offsetZ);
@@ -698,6 +703,7 @@ export class CharacterSelectStage {
     slot.container.rotation.set(0, 0, 0);
     slot.baseOffsetY = 0;
     slot.isStaticFloat = true;
+    slot.isProcedural = true;
   }
 
   private clearSlot(slot: ShowcaseSlot): void {
@@ -711,6 +717,14 @@ export class CharacterSelectStage {
       slot.mixer.uncacheRoot(slot.mixer.getRoot());
       slot.mixer = null;
     }
+    // Procedural fallback rigs own unique geometries/materials; GLB clones own unique SkinnedMesh skeletons
+    disposeObject3D(slot.container, {
+      disposeGeometries: slot.isProcedural,
+      disposeMaterials: slot.isProcedural,
+      disposeTextures: slot.isProcedural,
+      disposeSkeletons: true,
+    });
+    slot.isProcedural = false;
     slot.container.clear();
   }
 

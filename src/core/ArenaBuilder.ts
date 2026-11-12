@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { getStageModelUrl } from '../characters/ModelAssetRegistry';
-import { disposeObject3D } from '../signatures/specialMoveUtils';
+import { disposeObject3D } from '../utils/disposeThree';
+import { createManagedGLTFLoader, reportAssetByteProgress } from './AssetLoadingManager';
 import type { SceneManager } from './SceneManager';
 
 export const ARENA_HALF_WIDTH = 3.35;
@@ -162,7 +162,7 @@ export function applyStageTransformAndGround(
  * Loads, grounds, switches, and disposes GLB fighting stages in `SceneManager.scene`.
  */
 export class StageManager {
-  private readonly loader = new GLTFLoader();
+  private readonly loader = createManagedGLTFLoader();
   private currentStageRoot: THREE.Object3D | null = null;
   private shadowCatcher: THREE.Mesh | null = null;
   private activeStageId = '';
@@ -225,7 +225,9 @@ export class StageManager {
         const gltf = await this.loader.loadAsync(url, (evt) => {
           if (this.disposed || token !== this.loadToken) return;
           if (evt.lengthComputable && evt.total > 0) {
-            onProgress?.(Math.min(0.98, evt.loaded / evt.total));
+            const ratio = Math.min(0.98, evt.loaded / evt.total);
+            reportAssetByteProgress(url, ratio);
+            onProgress?.(ratio);
           }
         });
         if (this.disposed || token !== this.loadToken) {
