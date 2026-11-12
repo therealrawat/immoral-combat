@@ -69,6 +69,13 @@ const SHOWCASE_CONFIGS: Record<CharacterId, CharacterShowcaseConfig> = {
       'idle-2': { clipYawOffset: 0.0, offsetX: 0, offsetY: 0, offsetZ: 0 },
     },
   },
+  amitabh: {
+    scaleMultiplier: 1.0,
+    variants: {
+      'idle-1': { clipYawOffset: 0.0, offsetX: 0, offsetY: 0, offsetZ: 0 },
+      'idle-2': { clipYawOffset: 0.0, offsetX: 0, offsetY: 0, offsetZ: 0 },
+    },
+  },
 };
 
 interface ShowcaseSlot {

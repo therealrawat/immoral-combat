@@ -80,6 +80,11 @@ const FIGHTER_META: Record<
     defaultTag: 'STRATEGIST',
     isBossInfinite: false,
   },
+  amitabh: {
+    displayName: getCharacterDisplayName('amitabh'),
+    defaultTag: 'SHAHENSHAH',
+    isBossInfinite: false,
+  },
 };
 
 const PRIYANSHU_HIT_QUIPS = [
@@ -113,12 +118,20 @@ const PUTIN_HIT_QUIPS = [
   'Matryoshka counter is armed!! 🪆',
 ] as const;
 
+const AMITABH_HIT_QUIPS = [
+  'Hain? Yeh kya kiya aapne?! 🤨',
+  'Yeh 25 saal ka gussa hai!! 💥',
+  'Don ko hilaana mushkil hi nahi, namumkin hai! 😎',
+  'Vijay Dinanath Chauhan kabhi peechhe nahi hatta! 🔥',
+] as const;
+
 const HIT_QUIP_MAP: Record<CharacterId, readonly (string | (() => string))[]> = {
   chinu: ['Real Boss feels nothing! 👑'],
   priyanshu: PRIYANSHU_HIT_QUIPS,
   modiji: MODIJI_HIT_QUIPS,
   trump: TRUMP_HIT_QUIPS,
   putin: PUTIN_HIT_QUIPS,
+  amitabh: AMITABH_HIT_QUIPS,
 };
 
 const MODIJI_STRIKE_QUIPS = [
@@ -139,12 +152,19 @@ const PUTIN_STRIKE_QUIPS = [
   'Precision Kremlin counter!! 🥊',
 ] as const;
 
+const AMITABH_STRIKE_QUIPS = [
+  'Rishte mein toh hum tumhare baap lagte hain! 👑',
+  'Hum jahan khade hote hain, line wahin se shuru hoti hai! ⚡',
+  'Shahenshah ka vaar!! 🥊💥',
+] as const;
+
 const STRIKE_QUIP_MAP: Record<CharacterId, readonly string[]> = {
   chinu: ['Watch yourself around the Real Boss! 👑'],
   priyanshu: ['Gotcha cleanly!! 🥊', 'Fast hands!! ⚡', 'Incoming challenger hit!! 💥'],
   modiji: MODIJI_STRIKE_QUIPS,
   trump: TRUMP_STRIKE_QUIPS,
   putin: PUTIN_STRIKE_QUIPS,
+  amitabh: AMITABH_STRIKE_QUIPS,
 };
 
 const PRIYANSHU_BOSS_QUIPS = [
@@ -209,6 +229,14 @@ const MUAY_THAI_TIMINGS: Record<
     hit2Damage: 16,
     finisherDelayMs: 2550,
     finisherDamage: 24,
+  },
+  amitabh: {
+    hit1DelayMs: 650,
+    hit1Damage: 14,
+    hit2DelayMs: 1380,
+    hit2Damage: 16,
+    finisherDelayMs: 2550,
+    finisherDamage: 26,
   },
 };
 
@@ -1410,6 +1438,7 @@ export class GameController {
     if (attackerId === 'modiji') return isKick ? 330 : 280;
     if (attackerId === 'trump') return isKick ? 330 : 260;
     if (attackerId === 'putin') return isKick ? 330 : 260;
+    if (attackerId === 'amitabh') return isKick ? 330 : 260;
     return isKick ? 190 : 150;
   }
 
@@ -1761,6 +1790,11 @@ export class GameController {
           state === 'DANCE'
             ? 'Sambo rhythm ready!! 🥊♟️'
             : 'Checkmate begins with posture!! 🫡🔥';
+      } else if (cpuId === 'amitabh') {
+        quip =
+          state === 'DANCE'
+            ? 'Shahenshah ka swag!! 👑✨'
+            : 'Hum jahan khade hote hain, line wahin se shuru hoti hai! ⚡';
       }
       this.setQuip(speaker, quip, false);
       this.syncHUD();
@@ -1831,6 +1865,7 @@ export class GameController {
       trump: { sparkleY: 1.65, quip: 'Nobody strikes a pose better than me!! 😤👑' },
       putin: { sparkleY: 1.65, quip: 'Strategic victory cheer!! ♟️🔥' },
       priyanshu: { sparkleY: 0.65, quip: '200 pushups daily! 💪🔥' },
+      amitabh: { sparkleY: 1.8, quip: 'Rishte mein toh hum tumhare baap lagte hain!! 👑🔥' },
     };
     const cfg = poseConfig[this.selectedCharacter];
     this.effects.spawnBossFlexSparkle(
@@ -1841,7 +1876,7 @@ export class GameController {
   }
 
   private triggerShowcaseDance(
-    fighterId: 'modiji' | 'trump' | 'putin',
+    fighterId: 'modiji' | 'trump' | 'putin' | 'amitabh',
     customYaw: number,
     quipText: string,
     sparklePoint?: THREE.Vector3
@@ -1899,6 +1934,15 @@ export class GameController {
         'putin',
         0.14,
         'Calculated Sambo stance!! 🫡🔥',
+        sparklePoint
+      );
+      return;
+    }
+    if (this.selectedCharacter === 'amitabh') {
+      this.triggerShowcaseDance(
+        'amitabh',
+        0.1,
+        'Shahenshah ka swag!! 👑✨',
         sparklePoint
       );
       return;
@@ -1996,6 +2040,7 @@ export class GameController {
       trump: `${FIGHTER_META.trump.displayName} blesses the ring!! 👑🔥`,
       putin: `${FIGHTER_META.putin.displayName} enters with a 20m table!! 🪑🔥`,
       priyanshu: `${FIGHTER_META.priyanshu.displayName} drops into the ring!! 🔥`,
+      amitabh: `${FIGHTER_META.amitabh.displayName} steps in: Hum jahan khade hote hain, line wahin se shuru hoti hai! 👑🔥`,
     };
     this.setQuip(FIGHTER_META[actorId].displayName, entryQuips[actorId]);
     this.syncHUD();

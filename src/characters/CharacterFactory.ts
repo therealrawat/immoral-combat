@@ -156,12 +156,51 @@ export const PUTIN_PORTRAIT_DATA_URL =
     </svg>`
   );
 
+export const AMITABH_PORTRAIT_DATA_URL =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+      <defs>
+        <linearGradient id="ab_bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#1e1b4b"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+      </defs>
+      <rect width="120" height="120" rx="22" fill="url(#ab_bg)"/>
+      <!-- Black Shahenshah Blazer & White Shirt -->
+      <path d="M18 120 C22 88 38 82 60 82 C82 82 98 88 102 120 Z" fill="#09090b"/>
+      <path d="M50 82 L60 112 L70 82 Z" fill="#f8fafc"/>
+      <path d="M55 96 L60 118 L65 96 Z" fill="#b91c1c"/>
+      <!-- Head / Face -->
+      <ellipse cx="60" cy="54" rx="23" ry="28" fill="#dca07b"/>
+      <!-- Salt & Pepper Distinguished Hair -->
+      <path d="M35 44 C35 22 85 22 85 44 C82 32 38 32 35 44 Z" fill="#475569"/>
+      <path d="M37 38 Q60 26 83 38 Q74 24 60 24 Q46 24 37 38 Z" fill="#cbd5e1"/>
+      <!-- Rectangular Glasses -->
+      <rect x="42" y="48" width="15" height="11" rx="2.5" fill="none" stroke="#1e293b" stroke-width="2.4"/>
+      <rect x="63" y="48" width="15" height="11" rx="2.5" fill="none" stroke="#1e293b" stroke-width="2.4"/>
+      <line x1="57" y1="53" x2="63" y2="53" stroke="#1e293b" stroke-width="2.4"/>
+      <!-- Eyes behind lenses -->
+      <circle cx="49.5" cy="53.5" r="2.4" fill="#0f172a"/>
+      <circle cx="70.5" cy="53.5" r="2.4" fill="#0f172a"/>
+      <!-- Eyebrows -->
+      <path d="M42 45 L56 46 M64 46 L78 45" stroke="#334155" stroke-width="2.6" stroke-linecap="round"/>
+      <!-- Nose -->
+      <path d="M59 52 L60 63 L57 65 H63" fill="none" stroke="#9a3412" stroke-width="1.8" stroke-linecap="round"/>
+      <!-- Iconic White French Beard / Goatee -->
+      <path d="M51 68 Q60 74 69 68 Q69 82 60 84 Q51 82 51 68 Z" fill="#e2e8f0"/>
+      <!-- Lips inside goatee -->
+      <path d="M54 72 H66" stroke="#7c2d12" stroke-width="2.2" stroke-linecap="round"/>
+    </svg>`
+  );
+
 const CHARACTER_HEIGHT_METERS: Record<CharacterId, number> = {
   chinu: 1.524,      // 5'0" (60 in)
   priyanshu: 1.6764, // 5'6" (66 in)
   modiji: 1.7018,    // 5'7" (67 in)
   trump: 1.7272,     // 5'8" (68 in)
   putin: 1.7018,     // 5'7" (67 in)
+  amitabh: 1.8796,   // 6'2" (74 in)
 };
 
 const CHARACTER_THEMES: Record<CharacterId, CharacterVisualTheme> = {
@@ -223,6 +262,18 @@ const CHARACTER_THEMES: Record<CharacterId, CharacterVisualTheme> = {
     shoeColor: 0x0f172a,
     accentColor: 0xdc2626,
     hairColor: 0xcbd5e1,
+    isFemale: false,
+  },
+  amitabh: {
+    displayName: getCharacterDisplayName('amitabh'),
+    faceUrl: AMITABH_PORTRAIT_DATA_URL,
+    shirtColor: 0x18181b,
+    pantsColor: 0x27272a,
+    skinColor: 0xdca07b,
+    gloveColor: 0xa1a1aa,
+    shoeColor: 0x09090b,
+    accentColor: 0xeab308,
+    hairColor: 0x52525b,
     isFemale: false,
   },
 };
@@ -626,6 +677,12 @@ export class CharacterFactory {
         urls: getCharacterAvatarUrls('putin'),
         name: 'PutinGLBScene',
         fallbackScale: 1.3044,
+        groundY: 0.004,
+      },
+      amitabh: {
+        urls: getCharacterAvatarUrls('amitabh'),
+        name: 'AmitabhGLBScene',
+        fallbackScale: 1.35,
         groundY: 0.004,
       },
     };

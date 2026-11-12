@@ -85,7 +85,20 @@ function buildModelAssetRegistry(): SplitModelRegistry {
     const moveKey = fileStem.startsWith(prefix) ? fileStem.slice(prefix.length) : fileStem;
     const existing = legacyByCharacter.get(folderKey) ?? {};
     existing[moveKey] = url;
+    if (fileStem.endsWith('-avatar') || fileStem === 'avatar') {
+      existing['avatar'] = url;
+    }
+    if (fileStem.endsWith('-body') || fileStem === 'body') {
+      existing['body'] = url;
+    }
     legacyByCharacter.set(folderKey, existing);
+    if (folderKey === 'amitabh') {
+      const alias = legacyByCharacter.get('amitji') ?? {};
+      alias[moveKey] = url;
+      if (existing['avatar']) alias['avatar'] = existing['avatar'];
+      if (existing['body']) alias['body'] = existing['body'];
+      legacyByCharacter.set('amitji', alias);
+    }
   }
 
   return { sharedCharacters, sharedAnimations, stages, objects, legacyByCharacter };

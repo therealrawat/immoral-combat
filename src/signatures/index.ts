@@ -1,4 +1,5 @@
 import type { CharacterId } from '../types/game';
+import { amitabhSignatures } from './amitabh';
 import { chinuSignatures } from './chinu';
 import { modijiSignatures } from './modiji';
 import { priyanshuSignatures } from './priyanshu';
@@ -12,6 +13,7 @@ export type {
   SignatureMoveMetadata,
 } from './types';
 export { CINEMATIC_FREEZE_TIME_SCALE } from './sharedHelpers';
+export { amitabhSignatures } from './amitabh';
 export {
   CyberpunkPoisonSpecialMove,
   disposeCachedCyberpunkLaptop,
@@ -33,6 +35,7 @@ export const CHARACTER_SIGNATURES: Record<CharacterId, readonly SignatureMoveDef
   modiji: modijiSignatures,
   trump: trumpSignatures,
   putin: putinSignatures,
+  amitabh: amitabhSignatures,
 };
 
 export function getCharacterSignatures(characterId: CharacterId): readonly SignatureMoveDefinition[] {

@@ -7,7 +7,7 @@
  * `CHARACTER_NAMES` below.
  */
 
-export const CHARACTER_IDS = ['chinu', 'priyanshu', 'modiji', 'trump', 'putin'] as const;
+export const CHARACTER_IDS = ['chinu', 'priyanshu', 'modiji', 'trump', 'putin', 'amitabh'] as const;
 
 export type CharacterId = (typeof CHARACTER_IDS)[number];
 
@@ -21,6 +21,7 @@ export const SELECT_ROSTER_ORDER: readonly SelectRosterSlotId[] = [
   'modiji',
   'trump',
   'putin',
+  'amitabh',
 ];
 
 /**
@@ -32,6 +33,7 @@ export const CHARACTER_NAMES: Record<CharacterId, string> = {
   modiji: 'Modiji',
   trump: 'Pope Grump',
   putin: 'царь Путин',
+  amitabh: 'Amitabh Bachchan',
 };
 
 export function isCharacterId(value: string): value is CharacterId {

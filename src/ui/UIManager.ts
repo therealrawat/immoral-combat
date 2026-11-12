@@ -1,5 +1,6 @@
 import gsap from 'gsap';
 import {
+  AMITABH_PORTRAIT_DATA_URL,
   CHINU_PORTRAIT_DATA_URL,
   MODIJI_PORTRAIT_DATA_URL,
   PRIYANSHU_PORTRAIT_DATA_URL,
@@ -37,6 +38,7 @@ const PORTRAIT_MAP: Record<CharacterId, string> = {
   modiji: MODIJI_PORTRAIT_DATA_URL,
   trump: TRUMP_PORTRAIT_DATA_URL,
   putin: PUTIN_PORTRAIT_DATA_URL,
+  amitabh: AMITABH_PORTRAIT_DATA_URL,
 };
 
 type RosterSlotId = SelectRosterSlotId;
@@ -65,6 +67,10 @@ const SELECT_FIGHTER_STATIC_META: Record<
   putin: {
     epithet: 'Iron Kremlin Strategist',
     metaText: 'STRATEGIST • 150 HP',
+  },
+  amitabh: {
+    epithet: 'Shahenshah of Bollywood',
+    metaText: 'SHAHENSHAH • 150 HP',
   },
 };
 
