@@ -25,6 +25,7 @@ export type FighterState =
   | 'HIT'
   | 'ATTEMPT_ATTACK'
   | 'FALL_BACK'
+  | 'DEAD'
   | 'GET_UP';
 
 export type CharacterBoneName =

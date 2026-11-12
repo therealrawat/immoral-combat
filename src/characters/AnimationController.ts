@@ -19,10 +19,11 @@ const ONE_SHOT_STATES = new Set<FighterState>([
   'HIT',
   'ATTEMPT_ATTACK',
   'FALL_BACK',
+  'DEAD',
   'GET_UP',
 ]);
 
-const CLAMP_STATES = new Set<FighterState>(['FALL_BACK', 'ATTEMPT_ATTACK', 'SPANKED', 'LASER_EYES']);
+const CLAMP_STATES = new Set<FighterState>(['FALL_BACK', 'DEAD', 'ATTEMPT_ATTACK', 'SPANKED', 'LASER_EYES']);
 
 export type AnimationFinishedHandler = (finishedState: FighterState) => void;
 

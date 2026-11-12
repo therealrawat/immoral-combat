@@ -14,7 +14,13 @@ import { getAvailableStageIds } from '../characters/ModelAssetRegistry';
 import { CpuAiController, CpuPoseState } from '../combat/CpuAiController';
 import { PhysicsCombatSystem } from '../combat/PhysicsCombatSystem';
 import { EffectsManager } from '../effects/EffectsManager';
-import { CharacterId, DifficultyLevel, FighterRig, SelectIdleVariant } from '../types/game';
+import {
+  CharacterId,
+  DifficultyLevel,
+  FighterRig,
+  FighterState,
+  SelectIdleVariant,
+} from '../types/game';
 import {
   CINEMATIC_FREEZE_TIME_SCALE,
   disposeCachedCyberpunkLaptop,
@@ -417,6 +423,27 @@ export class GameController {
         onRoundEnd: (result) => {
           if (result.reason === 'ko') {
             this.sound.playKOBell();
+            if (result.winner !== 'draw') {
+              const winnerId = this.getFighterForSlot(result.winner);
+              const winnerAnim = this.anims.get(winnerId);
+              if (winnerAnim && !this.physics.isKnockedDown(winnerId)) {
+                const cheerState: FighterState | null = winnerAnim.hasState('DANCE')
+                  ? 'DANCE'
+                  : winnerAnim.hasState('CHAMP_POSE')
+                  ? 'CHAMP_POSE'
+                  : winnerAnim.hasState('POSE')
+                  ? 'POSE'
+                  : null;
+                if (cheerState) {
+                  this.scheduleUnscaled(() => {
+                    const gameState = this.gameManager.getState();
+                    if (gameState === 'ROUND_END' || gameState === 'MATCH_OVER') {
+                      winnerAnim.transitionTo(cheerState, 0.15, true);
+                    }
+                  }, 650);
+                }
+              }
+            }
           } else {
             this.sound.playClick();
           }
@@ -427,8 +454,14 @@ export class GameController {
           this.aggressionHits.clear();
           this.effects.clearBloodDecals();
           this.physics.setActivePair(this.leftFighterId, this.rightFighterId, true);
+          this.physics.setKnockedDown(this.leftFighterId, false);
+          this.physics.setKnockedDown(this.rightFighterId, false);
+          this.physics.setMovementPaused(this.leftFighterId, false);
+          this.physics.setMovementPaused(this.rightFighterId, false);
           this.fighterHp.set(this.leftFighterId, FIGHTER_MAX_HP);
           this.fighterHp.set(this.rightFighterId, FIGHTER_MAX_HP);
+          this.anims.get(this.leftFighterId)?.transitionTo('IDLE', 0.08, true);
+          this.anims.get(this.rightFighterId)?.transitionTo('IDLE', 0.08, true);
           this.cpuAi.reset(performance.now(), 3200);
           this.syncHUD();
         },
@@ -925,13 +958,34 @@ export class GameController {
       invulnerable: FIGHTER_META[id].isBossInfinite,
       homePosition: new THREE.Vector3(homeX, 0, 0),
       homeRotationY: homeYaw,
+      onPlayKO: () => {
+        const anim = this.anims.get(id);
+        const oppId = this.getFighterForSlot(slot === 'player1' ? 'player2' : 'player1');
+        const koState: FighterState = anim?.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
+        if (anim) {
+          this.physics.setKnockedDown(id, true);
+          this.physics.setMoveInput(id, 0, 0);
+          this.physics.setLocomotionState(id, false, null);
+          this.physics.setMovementPaused(id, true);
+          anim.transitionTo(koState, 0.08, true);
+          this.physics.applyDirectionalImpulse(id, oppId, -3.8);
+          if (rig) {
+            this.effects.spawnDizzyStars(rig.headAnchor, 2.2);
+          }
+          this.sound.playMatSlamAndDizzy();
+        }
+      },
       onPlayFall: () => {
         const anim = this.anims.get(id);
         const oppId = this.getFighterForSlot(slot === 'player1' ? 'player2' : 'player1');
-        if (anim && anim.getState() !== 'FALL_BACK') {
+        const fallState: FighterState = anim?.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
+        if (anim && anim.getState() !== fallState) {
           this.physics.setKnockedDown(id, true);
-          anim.transitionTo('FALL_BACK', 0.05, true);
-          this.physics.applyDirectionalImpulse(id, oppId, -6.8);
+          this.physics.setMoveInput(id, 0, 0);
+          this.physics.setLocomotionState(id, false, null);
+          this.physics.setMovementPaused(id, true);
+          anim.transitionTo(fallState, 0.05, true);
+          this.physics.applyDirectionalImpulse(id, oppId, -5.5);
           if (rig) {
             this.effects.spawnDizzyStars(rig.headAnchor, 1.7);
           }
@@ -1473,7 +1527,7 @@ export class GameController {
     if (!attackerAnim || !defenderAnim || !defenderRig) return;
 
     const defenderState = defenderAnim.getState();
-    if (defenderState === 'FALL_BACK' || defenderState === 'GET_UP') {
+    if (defenderState === 'FALL_BACK' || defenderState === 'DEAD' || defenderState === 'GET_UP') {
       return;
     }
 
@@ -1499,7 +1553,7 @@ export class GameController {
       if (this.isCinematicActive || this.disposed || this.gameManager.isControlsLocked()) return;
 
       const currentState = defenderAnim.getState();
-      if (currentState === 'FALL_BACK' || currentState === 'GET_UP') return;
+      if (currentState === 'FALL_BACK' || currentState === 'DEAD' || currentState === 'GET_UP') return;
 
       const hit = this.physics.resolveStrike(attackerId, defenderId, move, damage);
       const impactPoint =
@@ -1544,7 +1598,7 @@ export class GameController {
     if (!attackerAnim || !defenderAnim || !defenderRig) return;
 
     const defenderState = defenderAnim.getState();
-    if (defenderState === 'FALL_BACK' || defenderState === 'GET_UP') return;
+    if (defenderState === 'FALL_BACK' || defenderState === 'DEAD' || defenderState === 'GET_UP') return;
 
     const isKick = move === 'kick';
     const baseDamage = isKick ? CPU_KICK_DAMAGE : CPU_PUNCH_DAMAGE;
@@ -1573,7 +1627,7 @@ export class GameController {
       }
 
       const currentState = defenderAnim.getState();
-      if (currentState === 'FALL_BACK' || currentState === 'GET_UP') return;
+      if (currentState === 'FALL_BACK' || currentState === 'DEAD' || currentState === 'GET_UP') return;
 
       const hit = this.physics.resolveStrike(attackerId, defenderId, move, damage);
       if (!hit) return;
@@ -2048,7 +2102,8 @@ export class GameController {
     this.sound.playClick();
     this.syncHUD();
 
-    const needsStandUp = targetAnim.getState() === 'FALL_BACK';
+    const needsStandUp =
+      targetAnim.getState() === 'FALL_BACK' || targetAnim.getState() === 'DEAD';
     if (needsStandUp) {
       this.physics.setKnockedDown(targetId, false);
       targetAnim.transitionTo('GET_UP', 0.08, true);
@@ -2104,7 +2159,11 @@ export class GameController {
         this.scheduleUnscaled(() => {
           this.gameTimeScale = 1;
           this.physics.setKnockedDown(targetId, true);
-          targetAnim.transitionTo('FALL_BACK', 0.04, true);
+          const isKOd =
+            (this.fighterHp.get(targetId) ?? 0) <= 0 ||
+            this.gameManager.getState() !== 'FIGHTING';
+          const fallState = isKOd && targetAnim.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
+          targetAnim.transitionTo(fallState, 0.04, true);
           this.physics.applyDirectionalImpulse(targetId, attackerId, -8.2);
           this.effects.spawnDizzyStars(targetRig.headAnchor, 1.55);
           this.sound.playMatSlamAndDizzy();
@@ -2142,7 +2201,7 @@ export class GameController {
     if (!attackerAnim || !defenderAnim || !defenderRig) return;
 
     const defenderState = defenderAnim.getState();
-    if (defenderState === 'FALL_BACK' || defenderState === 'GET_UP') return;
+    if (defenderState === 'FALL_BACK' || defenderState === 'DEAD' || defenderState === 'GET_UP') return;
 
     this.sound.playCounterWindup();
     attackerAnim.transitionTo('KICK', 0.05, true);
@@ -2289,7 +2348,9 @@ export class GameController {
       this.scheduleUnscaled(() => {
         this.gameTimeScale = 1;
         this.physics.setKnockedDown(challengerId, true);
-        challengerAnim.transitionTo('FALL_BACK', 0.04, true);
+        const isDeadlyStrike = (this.fighterHp.get(challengerId) ?? 0) <= 0;
+        const fallState = isDeadlyStrike && challengerAnim.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
+        challengerAnim.transitionTo(fallState, 0.04, true);
         this.physics.applyDirectionalImpulse(challengerId, bossId, -7.6);
         this.effects.spawnDizzyStars(challengerRig.headAnchor, 1.55);
         this.sound.playMatSlamAndDizzy();
@@ -2349,7 +2410,8 @@ export class GameController {
     this.sound.playClick();
     this.syncHUD();
 
-    const needsStandUp = priyanshuAnim.getState() === 'FALL_BACK';
+    const needsStandUp =
+      priyanshuAnim.getState() === 'FALL_BACK' || priyanshuAnim.getState() === 'DEAD';
     if (needsStandUp) {
       this.physics.setKnockedDown('priyanshu', false);
       priyanshuAnim.transitionTo('GET_UP', 0.08, true);
@@ -2469,7 +2531,7 @@ export class GameController {
         this.effects.spawnBossFlexSparkle(rig.root.position.clone().setY(1.5));
         this.flashTintFeedback(rig, 0x34d399, 0.45, 0.7);
       }
-      if (anim && anim.getState() === 'FALL_BACK') {
+      if (anim && (anim.getState() === 'FALL_BACK' || anim.getState() === 'DEAD')) {
         this.physics.setKnockedDown(id, false);
         anim.transitionTo('GET_UP', 0.08, true);
       }

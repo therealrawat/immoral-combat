@@ -136,6 +136,7 @@ const PLAYER_NON_INTERRUPT_STATES = new Set<FighterState>([
   'SPANKED',
   'ATTEMPT_ATTACK',
   'FALL_BACK',
+  'DEAD',
   'GET_UP',
 ]);
 

@@ -644,6 +644,7 @@ export function createHumanoidGLBClips(
     HIT,
     ATTEMPT_ATTACK,
     FALL_BACK,
+    DEAD: FALL_BACK.clone(),
     GET_UP,
   };
 }

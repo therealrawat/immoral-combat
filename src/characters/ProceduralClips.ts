@@ -725,6 +725,7 @@ export function createProceduralClips(): Partial<Record<FighterState, THREE.Anim
     HIT,
     ATTEMPT_ATTACK,
     FALL_BACK,
+    DEAD: FALL_BACK.clone(),
     GET_UP,
   };
 }

@@ -55,7 +55,8 @@ export function prepareSignatureCinematic(
   ctx.sound.playClick();
   ctx.syncHUD();
 
-  const needsStandUp = targetAnim.getState() === 'FALL_BACK';
+  const needsStandUp =
+    targetAnim.getState() === 'FALL_BACK' || targetAnim.getState() === 'DEAD';
   if (needsStandUp) {
     ctx.physics.setKnockedDown(targetId, false);
     targetAnim.transitionTo('GET_UP', 0.08, true);
@@ -89,7 +90,9 @@ export function launchKnockdownAndRecover(
   ctx.setTimeScale(1);
   options?.beforeKnockdown?.();
   ctx.physics.setKnockedDown(defenderId, true);
-  defenderAnim.transitionTo('FALL_BACK', 0.04, true);
+  const isDeadlyStrike = ctx.getFighterHp(defenderId) <= 0;
+  const fallState = isDeadlyStrike && defenderAnim.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
+  defenderAnim.transitionTo(fallState, 0.04, true);
   ctx.physics.applyDirectionalImpulse(defenderId, attackerId, impulseStrength);
   ctx.effects.spawnDizzyStars(defenderRig.headAnchor, options?.starHeight ?? 1.55);
   ctx.sound.playMatSlamAndDizzy();

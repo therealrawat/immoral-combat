@@ -64,6 +64,10 @@ function buildModelAssetRegistry(): SplitModelRegistry {
 
     if (folderKey === 'animations') {
       sharedAnimations.set(fileStem, url);
+      const strippedSuffix = fileStem.replace(/-animation$/, '');
+      if (strippedSuffix !== fileStem) {
+        sharedAnimations.set(strippedSuffix, url);
+      }
       continue;
     }
 
@@ -123,6 +127,12 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     state: 'LASER_EYES',
     clipSuffix: 'LaserEyes',
     moveKeys: ['laser-eyes', 'signature'],
+    defaultSpeed: 1.0,
+  },
+  {
+    state: 'DEAD',
+    clipSuffix: 'Dead',
+    moveKeys: ['dead-animation', 'dead', 'death', 'ko'],
     defaultSpeed: 1.0,
   },
 ];

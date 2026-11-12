@@ -12,6 +12,7 @@ export interface FighterParticipantConfig {
   mixer?: THREE.AnimationMixer;
   fallAction?: THREE.AnimationAction;
   idleAction?: THREE.AnimationAction;
+  onPlayKO?: () => void;
   onPlayFall?: () => void;
   onPlayIdle?: () => void;
   onResetPosition?: () => void;
@@ -668,7 +669,11 @@ export class GameManager {
   }
 
   private playDefeatedFallAnimation(runtime: FighterRuntimeState): void {
-    runtime.config.onPlayFall?.();
+    if (runtime.config.onPlayKO) {
+      runtime.config.onPlayKO();
+    } else {
+      runtime.config.onPlayFall?.();
+    }
 
     const { fallAction, idleAction } = runtime.config;
     if (fallAction) {
