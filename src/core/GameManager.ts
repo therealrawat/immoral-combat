@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
+import { ASSET_CDN, getCdnAssetUrl } from '../config/cdn';
+export { ASSET_CDN, getCdnAssetUrl } from '../config/cdn';
 
 export type GameState = 'INIT' | 'INTRO' | 'FIGHTING' | 'ROUND_END' | 'MATCH_OVER';
 export type PlayerSlot = 'player1' | 'player2';
@@ -111,6 +113,9 @@ const SIGNATURE_PROMPT_TEXT = 'Press F for Signature Move';
  * GSAP health/K.O. controller, and Signature Meter manager.
  */
 export class GameManager {
+  public static readonly ASSET_CDN = ASSET_CDN;
+  public static readonly getCdnAssetUrl = getCdnAssetUrl;
+
   private readonly hud: GameHUDElements;
   private readonly callbacks: GameManagerCallbacks;
 

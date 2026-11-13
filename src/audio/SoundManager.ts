@@ -1,21 +1,49 @@
 /**
  * Synthesizes comical arcade fighting sound effects using the Web Audio API
- * and plays authentic voice lines & SFX from the `sound/` directory.
+ * and plays authentic voice lines & SFX hosted on Cloudflare R2 CDN.
  */
 
-const AUDIO_GLOB_URLS = import.meta.glob<string>('../../sound/*.ogg', {
-  query: '?url',
-  import: 'default',
-  eager: true,
-});
+import { ASSET_CDN } from '../config/cdn';
+
+const SOUND_FILENAMES: readonly string[] = [
+  '1', '10', '2', '3', '4', '5', '6', '7', '8', '9',
+  'arcade_mode', 'battle_mode', 'begin',
+  'beltHandle1', 'beltHandle2',
+  'bookClose', 'bookFlip1', 'bookFlip2', 'bookFlip3', 'bookOpen',
+  'bookPlace1', 'bookPlace2', 'bookPlace3',
+  'championship_mode', 'choose_your_character', 'chop',
+  'cloth1', 'cloth2', 'cloth3', 'cloth4', 'clothBelt', 'clothBelt2',
+  'combo', 'combo_breaker',
+  'creak1', 'creak2', 'creak3',
+  'deathmatch',
+  'doorClose_1', 'doorClose_2', 'doorClose_3', 'doorClose_4',
+  'doorOpen_1', 'doorOpen_2',
+  'drawKnife1', 'drawKnife2', 'drawKnife3',
+  'dropLeather',
+  'fight', 'final_round', 'flawless_victory',
+  'footstep00', 'footstep01', 'footstep02', 'footstep03', 'footstep04',
+  'footstep05', 'footstep06', 'footstep07', 'footstep08', 'footstep09',
+  'game_over',
+  'handleCoins', 'handleCoins2', 'handleSmallLeather', 'handleSmallLeather2',
+  "it's_a_tie",
+  'kill_her', 'kill_him', 'kill_it',
+  'knifeSlice', 'knifeSlice2',
+  'loser',
+  'metalClick', 'metalLatch', 'metalPot1', 'metalPot2', 'metalPot3',
+  'multi_kill',
+  'player_1', 'player_2',
+  'prepare_yourself',
+  'ready',
+  'round_1', 'round_2', 'round_3', 'round_4', 'round_5',
+  'story_mode', 'sudden_death', 'survival_mode',
+  'tie', 'tie_breaker', 'time',
+  'winner', 'you_lose', 'you_win',
+];
 
 function buildSoundUrlMap(): Map<string, string> {
   const map = new Map<string, string>();
-  for (const [rawPath, url] of Object.entries(AUDIO_GLOB_URLS)) {
-    const normalized = rawPath.replace(/\\/g, '/');
-    const match = /sound\/(.+)\.ogg$/i.exec(normalized);
-    if (!match) continue;
-    const stem = match[1];
+  for (const stem of SOUND_FILENAMES) {
+    const url = `${ASSET_CDN}/sound/${stem}.ogg`;
     const lowerStem = stem.toLowerCase();
 
     map.set(stem, url);

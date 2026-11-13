@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { assetLoadingManager, createManagedGLTFLoader } from '../core/AssetLoadingManager';
+import { ASSET_CDN } from '../config/cdn';
 import {
   extractSkeletonRestProfile,
   retargetClipToCharacter,
@@ -364,8 +365,8 @@ export class SharedAnimationManager {
 
   constructor(options: SharedAnimationManagerOptions = {}) {
     this.loader = createManagedGLTFLoader(options.loadingManager ?? assetLoadingManager);
-    this.charactersBasePath = (options.charactersBasePath ?? '/models/characters').replace(/\/+$/, '');
-    this.animationsBasePath = (options.animationsBasePath ?? '/models/animations').replace(/\/+$/, '');
+    this.charactersBasePath = (options.charactersBasePath ?? `${ASSET_CDN}/models/characters`).replace(/\/+$/, '');
+    this.animationsBasePath = (options.animationsBasePath ?? `${ASSET_CDN}/models/animations`).replace(/\/+$/, '');
     this.defaultIdleAnimation = options.defaultIdleAnimation ?? 'idle';
     this.defaultFadeDuration = options.defaultFadeDuration ?? 0.16;
   }

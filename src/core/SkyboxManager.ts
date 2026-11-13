@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SceneManager } from './SceneManager';
+import { ASSET_CDN } from '../config/cdn';
 
 export interface SkyboxPreset {
   id: string;
@@ -10,11 +11,18 @@ export interface SkyboxPreset {
   fogFar: number;
 }
 
-const SKYBOX_GLOB_URLS = import.meta.glob<string>('../../models/sky/*.png', {
-  query: '?url',
-  import: 'default',
-  eager: true,
-});
+const SKYBOX_STEMS: readonly string[] = [
+  'skybox-alien',
+  'skybox-day',
+  'skybox-morning',
+  'skybox-night',
+  'skybox-space-band',
+  'skybox-space-dark',
+  'skybox-space-day',
+  'skybox-space-galaxy',
+  'skybox-space-nebula',
+  'skybox-space',
+];
 
 const DEFAULT_SKYBOX_CONFIG: Record<
   string,
@@ -85,12 +93,7 @@ const DEFAULT_SKYBOX_CONFIG: Record<
 function buildSkyboxPresets(): Map<string, SkyboxPreset> {
   const presets = new Map<string, SkyboxPreset>();
 
-  for (const [rawPath, url] of Object.entries(SKYBOX_GLOB_URLS)) {
-    const normalized = rawPath.replace(/\\/g, '/');
-    const match = /models\/sky\/(.+)\.png$/i.exec(normalized);
-    if (!match) continue;
-    const stem = match[1].toLowerCase();
-
+  for (const stem of SKYBOX_STEMS) {
     const config = DEFAULT_SKYBOX_CONFIG[stem] ?? {
       displayName: stem
         .split('-')
@@ -104,7 +107,7 @@ function buildSkyboxPresets(): Map<string, SkyboxPreset> {
     presets.set(stem, {
       id: stem,
       displayName: config.displayName,
-      url,
+      url: `${ASSET_CDN}/models/sky/${stem}.png`,
       fogHex: config.fogHex,
       fogNear: config.fogNear,
       fogFar: config.fogFar,

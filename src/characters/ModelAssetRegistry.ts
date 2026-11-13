@@ -1,4 +1,5 @@
 import { CharacterId, FighterState, SelectIdleVariant } from '../types/game';
+import { ASSET_CDN } from '../config/cdn';
 
 export interface NativeGLBClipSpec {
   state: FighterState;
@@ -24,11 +25,76 @@ interface ConventionMoveRule {
   holdDurationSec?: number;
 }
 
-const MODEL_GLOB_URLS = import.meta.glob<string>('../../models/**/*.glb', {
-  query: '?url',
-  import: 'default',
-  eager: true,
-});
+const CDN_MODEL_RELATIVE_PATHS: readonly string[] = [
+  'characters/amitji-avatar.glb',
+  'characters/amitji-body.glb',
+  'characters/chinu-avatar.glb',
+  'characters/chinu-body.glb',
+  'characters/modiji-avatar.glb',
+  'characters/modiji-body.glb',
+  'characters/priyanshu-avatar.glb',
+  'characters/priyanshu-body.glb',
+  'characters/putin-avatar.glb',
+  'characters/putin-body.glb',
+  'characters/trump-avatar.glb',
+  'characters/trump-body.glb',
+  'stages/stage-1.glb',
+  'stages/stage-2.glb',
+  'stages/stage-3.glb',
+  'objects/cyberpunk_laptop.glb',
+  'animations/dead-animation.glb',
+  'animations/Lifting.glb',
+  'animations/Stabbing.glb',
+  'animations/Cheer/Cheering.glb',
+  'animations/Cheer/Clapping.glb',
+  'animations/Cheer/Excited.glb',
+  'animations/Cheer/Rallying.glb',
+  'animations/Cheer/Trump-Dance.glb',
+  'animations/Cheer/Victory.glb',
+  'animations/crouch/Crouch Death.glb',
+  'animations/crouch/Crouch To Stand.glb',
+  'animations/crouch/Jumping.glb',
+  'animations/Defence/Body Block.glb',
+  'animations/Greet/Praying.glb',
+  'animations/Greet/Quick Formal Bow.glb',
+  'animations/Greet/Quick Informal Bow.glb',
+  'animations/Greet/Salute.glb',
+  'animations/Greet/Shaking Hands 2.glb',
+  'animations/Greet/Waving.glb',
+  'animations/Hit/Big Hit To Head.glb',
+  'animations/Hit/Head Hit.glb',
+  'animations/Hit/Hit By Car.glb',
+  'animations/Hit/Hit On Legs.glb',
+  'animations/Hit/Hit To Body.glb',
+  'animations/Hit/Kick To The Groin.glb',
+  'animations/Hit/Rib Hit.glb',
+  'animations/Hit/Stomach Hit.glb',
+  'animations/Hit/Stumble Backwards.glb',
+  'animations/Idle/Breathing Idle.glb',
+  'animations/Idle/Happy Idle.glb',
+  'animations/Idle/Neutral Idle.glb',
+  'animations/Idle/Sad Idle.glb',
+  'animations/Idle/Warrior Idle.glb',
+  'animations/Kick/Flying Kick.glb',
+  'animations/Kick/Kicking.glb',
+  'animations/Kick/Mma Kick (1).glb',
+  'animations/Kick/Mma Kick.glb',
+  'animations/Kiss/Kiss (1).glb',
+  'animations/Kiss/Kiss.glb',
+  'animations/Punch/Elbow Punching.glb',
+  'animations/Punch/Hook Punch.glb',
+  'animations/Punch/mix-kick-punch.glb',
+  'animations/Punch/Picking Up.glb',
+  'animations/Punch/Punching.glb',
+  'animations/Punch/Quad Punch.glb',
+  'animations/Run/Run To Rolling.glb',
+  'animations/Run/Running (1).glb',
+  'animations/Run/Running Backward.glb',
+  'animations/Run/Running.glb',
+  'animations/Walk/Female-Walking.glb',
+  'animations/Walk/Fight-Walking.glb',
+  'animations/Walk/Walking.glb',
+];
 
 interface SplitModelRegistry {
   sharedCharacters: Map<string, string>;
@@ -39,12 +105,11 @@ interface SplitModelRegistry {
 }
 
 /**
- * Indexes both refactored shared-animation GLBs:
- *   - `models/characters/<character>-avatar.glb` / `<character>-body.glb` (Avaturn/Mixamo base meshes)
- *   - `models/animations/<category>/<move>.glb` (central shared Mixamo animations across categories)
- *   - `models/stages/<stage>.glb` (3D battle arenas)
- *   - `models/objects/<object>.glb` (interactive signature/stage props)
- * as well as legacy baked `models/<character>/<character>-<move>.glb` files.
+ * Indexes Cloudflare R2 CDN hosted GLBs:
+ *   - `${ASSET_CDN}/models/characters/<character>-avatar.glb` / `<character>-body.glb`
+ *   - `${ASSET_CDN}/models/animations/<category>/<move>.glb`
+ *   - `${ASSET_CDN}/models/stages/<stage>.glb`
+ *   - `${ASSET_CDN}/models/objects/<object>.glb`
  */
 function buildModelAssetRegistry(): SplitModelRegistry {
   const sharedCharacters = new Map<string, string>();
@@ -53,12 +118,9 @@ function buildModelAssetRegistry(): SplitModelRegistry {
   const objects = new Map<string, string>();
   const legacyByCharacter = new Map<string, Record<string, string>>();
 
-  for (const [rawPath, url] of Object.entries(MODEL_GLOB_URLS)) {
-    const normalized = rawPath.replace(/\\/g, '/');
-    const relMatch = /models\/(.+)\.glb$/i.exec(normalized);
-    if (!relMatch) continue;
-
-    const fullRelPath = relMatch[1];
+  for (const relPath of CDN_MODEL_RELATIVE_PATHS) {
+    const url = `${ASSET_CDN}/models/${relPath}`;
+    const fullRelPath = relPath.replace(/\.glb$/i, '');
     const parts = fullRelPath.split('/');
     const topFolder = parts[0].toLowerCase();
     const fileStem = parts[parts.length - 1];

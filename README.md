@@ -44,13 +44,13 @@ Immoral Combat is a Tekken-inspired 1v1 browser fighting game featuring a full-3
 
 ## Arena Stages
 
-Stages live under `models/stages/` and are automatically indexed by [`ModelAssetRegistry.ts`](src/characters/ModelAssetRegistry.ts) and calibrated in [`ArenaBuilder.ts`](src/core/ArenaBuilder.ts):
+Stages are hosted on the Cloudflare R2 CDN (`${ASSET_CDN}/models/stages/`) and calibrated in [`ArenaBuilder.ts`](src/core/ArenaBuilder.ts):
 
-| Stage ID | Display Name | Model Asset |
+| Stage ID | Display Name | Model CDN Asset |
 | --- | --- | --- |
-| `stage-1` | **Cyber Arena** | `models/stages/stage-1.glb` |
-| `stage-2` | **Dojo Courtyard** | `models/stages/stage-2.glb` |
-| `stage-3` | **Tournament Stage** | `models/stages/stage-3.glb` |
+| `stage-1` | **Cyber Arena** | `${ASSET_CDN}/models/stages/stage-1.glb` |
+| `stage-2` | **Dojo Courtyard** | `${ASSET_CDN}/models/stages/stage-2.glb` |
+| `stage-3` | **Tournament Stage** | `${ASSET_CDN}/models/stages/stage-3.glb` |
 
 ---
 
@@ -136,19 +136,12 @@ immoral-combat/
 ├── package.json                # Dependencies (three, gsap, vite, typescript) & npm scripts
 ├── tsconfig.json               # Strict TypeScript compiler configuration
 ├── vite.config.ts              # Vite config + server-side .env salted SHA-256 key hashing
-├── models/                     # Auto-discovered GLB 3D characters, animations & arena stages
-│   ├── chinu/                  # Chinu avatar, body & animation GLBs
-│   ├── modiji/                 # Modiji avatar, body & animation GLBs
-│   ├── priyanshu/              # Priyanshu avatar, body & animation GLBs
-│   ├── putin/                  # Putin avatar, body & animation GLBs
-│   ├── trump/                  # Pope Grump avatar, body & animation GLBs
-│   └── stages/                 # Arena stages (stage-1.glb .. stage-3.glb)
 └── src/
     ├── main.ts                 # App entrypoint initializing GameController
     ├── style.css               # Arcade HUD, Select screen, Controls Guide & Unlock modal styles
     ├── vite-env.d.ts           # Type declarations for Vite & injected sacred-key constants
     ├── audio/
-    │   └── SoundManager.ts     # Procedural Web Audio combat SFX synthesizer
+    │   └── SoundManager.ts     # CDN-backed sound effects & Web Audio synthesizer
     ├── characters/
     │   ├── AnimationController.ts
     │   ├── AnimationRetargeter.ts
@@ -156,17 +149,20 @@ immoral-combat/
     │   ├── characterNames.ts   # Single source of truth for fighter IDs & display names
     │   ├── chinuAccess.ts      # Sacred Chinu lock state & pure-TS SHA-256 verification
     │   ├── GLBClipsBuilder.ts
-    │   ├── ModelAssetRegistry.ts # Vite glob auto-discovery for models/*/*.glb
+    │   ├── ModelAssetRegistry.ts # Cloudflare R2 CDN mapping for characters, animations, stages
     │   ├── ProceduralClips.ts
     │   └── SharedAnimationManager.ts
     ├── combat/
     │   ├── CpuAiController.ts  # Difficulty-profiled CPU decision & signature AI
     │   └── PhysicsCombatSystem.ts
+    ├── config/
+    │   └── cdn.ts              # Global ASSET_CDN base URL & CDN resolver
     ├── core/
     │   ├── ArenaBuilder.ts     # Stage loading, scaling & raycast floor grounding
     │   ├── GameController.ts   # Main loop, combat resolution, heal & signature orchestration
     │   ├── GameManager.ts      # Best-of-3 state machine, timer, KO slow-mo & HUD sync
-    │   └── SceneManager.ts     # Three.js renderer, camera rig, lighting & stage management
+    │   ├── SceneManager.ts     # Three.js renderer, camera rig, lighting & stage management
+    │   └── SkyboxManager.ts    # CDN-backed 360° equirectangular skybox textures
     ├── effects/
     │   └── EffectsManager.ts   # Hit sparks, kiss hearts, camera/tint flash & 3D blood FX
     ├── signatures/
@@ -185,10 +181,13 @@ immoral-combat/
 
 ---
 
-## Adding Custom Models or Stages
+## Cloudflare R2 CDN Asset Offloading
 
-[`ModelAssetRegistry.ts`](src/characters/ModelAssetRegistry.ts) uses `import.meta.glob('../../models/*/*.glb')` so newly dropped `.glb` assets are discovered automatically:
+All 3D models (`.glb`), shared animations, 360° skyboxes, and sound assets are hosted externally on Cloudflare R2:
+- **Base CDN URL:** `https://pub-fb31e6086d984a29beb2f72346b229ec.r2.dev` (defined in [`src/config/cdn.ts`](src/config/cdn.ts) and exposed via `GameManager.ASSET_CDN`).
+- **Models:** `${ASSET_CDN}/models/characters/`, `${ASSET_CDN}/models/animations/`, `${ASSET_CDN}/models/stages/`, and `${ASSET_CDN}/models/objects/`.
+- **Skyboxes:** `${ASSET_CDN}/models/sky/<preset>.png`.
+- **Audio:** `${ASSET_CDN}/sound/<name>.ogg`.
 
-- **New Arena Stage:** Drop a `.glb` file into `models/stages/` (e.g., `models/stages/dojo-night.glb`), and optionally register custom scaling/atmosphere presets in `STAGE_PRESETS` inside [`src/core/ArenaBuilder.ts`](src/core/ArenaBuilder.ts).
-- **Split or Character GLB Pipelines:** Supports both per-character animation GLBs (`models/<character>/<character>-<move>.glb`) and shared T-pose character + animation packs (`models/characters/<character>.glb` + `models/animations/<move>.glb`).
+This keeps git commits and Vite/Netlify build artifacts lightweight (~1 MB total production bundle), eliminating bandwidth bottlenecks while preserving asset hierarchy and caching.
 
