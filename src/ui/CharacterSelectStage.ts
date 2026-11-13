@@ -13,6 +13,7 @@ import {
 import { sharedAnimationManager } from '../characters/SharedAnimationManager';
 import { CharacterId, SelectIdleVariant } from '../types/game';
 import { disposeObject3D } from '../utils/disposeThree';
+import { loadCachedPortrait, saveCachedPortrait } from './UIManager';
 
 export type SelectSide = 'p1' | 'cpu';
 
@@ -306,6 +307,12 @@ export class CharacterSelectStage {
 
   constructor(width: number, height: number, options: CharacterSelectStageOptions = {}) {
     this.options = options;
+    for (const id of CHARACTER_IDS) {
+      const cached = loadCachedPortrait(id);
+      if (cached) {
+        this.capturedPortraits.set(id, cached);
+      }
+    }
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x05070e);
     this.scene.fog = new THREE.FogExp2(0x05070e, 0.055);
@@ -653,53 +660,53 @@ export class CharacterSelectStage {
     const config = SHOWCASE_CONFIGS[characterId];
     const tuning = config.variants[effectiveVariant];
 
-    if (this.options.onPortraitReady && !this.capturedPortraits.has(characterId)) {
-      const portraitUrl = this.capturePortraitFromLoaded(characterId, glbScene);
-      if (portraitUrl) {
-        this.options.onPortraitReady(characterId, portraitUrl);
+      if (this.options.onPortraitReady) {
+        const portraitUrl = this.capturePortraitFromLoaded(characterId, glbScene);
+        if (portraitUrl) {
+          this.options.onPortraitReady(characterId, portraitUrl);
+        }
+      }
+
+      this.clearSlot(slot);
+
+      const wrapper = new THREE.Group();
+      wrapper.scale.setScalar(config.scaleMultiplier);
+      wrapper.add(glbScene);
+      slot.container.add(wrapper);
+      slot.isProcedural = false;
+
+      slot.baseOffsetY = tuning.offsetY;
+      slot.container.position.set(slot.baseX + tuning.offsetX, tuning.offsetY, tuning.offsetZ);
+      slot.container.rotation.set(0, slot.inwardYaw, 0);
+
+      if (idleClip) {
+        const mixer = new THREE.AnimationMixer(glbScene);
+        const action = mixer.clipAction(idleClip);
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.play();
+        // Start slightly offset on right slot so idle breathing isn't mirror-synchronized
+        mixer.update(side === 'cpu' ? 0.65 : 0.12);
+        slot.mixer = mixer;
+        slot.action = action;
+        slot.isStaticFloat = idleClip.duration < 0.15;
+      } else {
+        slot.isStaticFloat = true;
+      }
+
+      if (animateEntrance) {
+        const slideFromX = slot.baseX + tuning.offsetX + (side === 'p1' ? -0.34 : 0.34);
+        gsap.killTweensOf(slot.container.position);
+        gsap.fromTo(
+          slot.container.position,
+          { x: slideFromX },
+          { x: slot.baseX + tuning.offsetX, duration: 0.28, ease: 'power3.out' }
+        );
+
+        const rim = side === 'p1' ? this.leftRimLight : this.rightRimLight;
+        gsap.killTweensOf(rim);
+        gsap.fromTo(rim, { intensity: 40 }, { intensity: 22, duration: 0.45, ease: 'power2.out' });
       }
     }
-
-    this.clearSlot(slot);
-
-    const wrapper = new THREE.Group();
-    wrapper.scale.setScalar(config.scaleMultiplier);
-    wrapper.add(glbScene);
-    slot.container.add(wrapper);
-    slot.isProcedural = false;
-
-    slot.baseOffsetY = tuning.offsetY;
-    slot.container.position.set(slot.baseX + tuning.offsetX, tuning.offsetY, tuning.offsetZ);
-    slot.container.rotation.set(0, slot.inwardYaw, 0);
-
-    if (idleClip) {
-      const mixer = new THREE.AnimationMixer(glbScene);
-      const action = mixer.clipAction(idleClip);
-      action.setLoop(THREE.LoopRepeat, Infinity);
-      action.play();
-      // Start slightly offset on right slot so idle breathing isn't mirror-synchronized
-      mixer.update(side === 'cpu' ? 0.65 : 0.12);
-      slot.mixer = mixer;
-      slot.action = action;
-      slot.isStaticFloat = idleClip.duration < 0.15;
-    } else {
-      slot.isStaticFloat = true;
-    }
-
-    if (animateEntrance) {
-      const slideFromX = slot.baseX + tuning.offsetX + (side === 'p1' ? -0.34 : 0.34);
-      gsap.killTweensOf(slot.container.position);
-      gsap.fromTo(
-        slot.container.position,
-        { x: slideFromX },
-        { x: slot.baseX + tuning.offsetX, duration: 0.28, ease: 'power3.out' }
-      );
-
-      const rim = side === 'p1' ? this.leftRimLight : this.rightRimLight;
-      gsap.killTweensOf(rim);
-      gsap.fromTo(rim, { intensity: 40 }, { intensity: 22, duration: 0.45, ease: 'power2.out' });
-    }
-  }
 
   private mountProceduralFallback(slot: ShowcaseSlot, characterId: CharacterId): void {
     this.clearSlot(slot);
@@ -798,11 +805,11 @@ export class CharacterSelectStage {
     const clip =
       scene && sourceAnim
         ? retargetClipToCharacter(sourceAnim.clip, {
-            targetRoot: scene,
-            sourceProfile: sourceAnim.sourceProfile,
-            clipName,
-            yawOffsetRad: isSharedCentral ? 0 : tuning.clipYawOffset,
-          })
+          targetRoot: scene,
+          sourceProfile: sourceAnim.sourceProfile,
+          clipName,
+          yawOffsetRad: isSharedCentral ? 0 : tuning.clipYawOffset,
+        })
         : null;
 
     return { scene, clip };
@@ -922,6 +929,7 @@ export class CharacterSelectStage {
 
       const dataUrl = this.featherPortraitBottomEdge(rig.renderer.domElement);
       this.capturedPortraits.set(characterId, dataUrl);
+      saveCachedPortrait(characterId, dataUrl);
       return dataUrl;
     } catch {
       rig.renderer.clippingPlanes = [];

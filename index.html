@@ -285,12 +285,45 @@
       <footer class="hud-bottom">
         <div class="utility-buttons">
           <button type="button" class="util-btn" id="btn-sound-toggle">🔊 SFX ON</button>
-          <button type="button" class="util-btn" id="btn-open-select">Choose Fighter</button>
+          <button type="button" class="util-btn util-btn--pause" id="btn-pause-game" title="Pause Game (Esc)">⏸ PAUSE</button>
           <button type="button" class="util-btn" id="btn-heal-fighters" title="Heal / Restore Fighters (U)">💕 Heal
             (U)</button>
           <button type="button" class="util-btn" id="btn-controls-guide">? Controls (H)</button>
         </div>
       </footer>
+
+      <!-- In-Game Pause Menu Overlay (Toggled with ⏸ PAUSE / ESC) -->
+      <div class="pause-menu-backdrop hidden" id="pause-menu-backdrop" role="dialog" aria-modal="true"
+        aria-labelledby="pause-menu-title">
+        <div class="pause-menu-card" id="pause-menu-card">
+          <div class="pause-menu-crest" aria-hidden="true">⏸</div>
+          <span class="pause-menu-kicker">MATCH SUSPENDED</span>
+          <h2 class="pause-menu-title" id="pause-menu-title">GAME PAUSED</h2>
+          <p class="pause-menu-desc">Take a breather, fighter. Choose your next move:</p>
+
+          <div class="pause-menu-actions">
+            <button type="button" class="pause-menu-btn pause-menu-btn--resume" id="btn-pause-resume">
+              <span class="pause-menu-btn-icon">▶</span>
+              <span class="pause-menu-btn-text">RESUME FIGHT</span>
+              <kbd class="pause-menu-kbd">ESC</kbd>
+            </button>
+            <button type="button" class="pause-menu-btn pause-menu-btn--restart" id="btn-pause-restart">
+              <span class="pause-menu-btn-icon">🔄</span>
+              <span class="pause-menu-btn-text">RESTART MATCH</span>
+              <kbd class="pause-menu-kbd">R</kbd>
+            </button>
+            <button type="button" class="pause-menu-btn pause-menu-btn--controls" id="btn-pause-controls">
+              <span class="pause-menu-btn-icon">🎮</span>
+              <span class="pause-menu-btn-text">CONTROLS GUIDE</span>
+              <kbd class="pause-menu-kbd">H</kbd>
+            </button>
+            <button type="button" class="pause-menu-btn pause-menu-btn--quit" id="btn-pause-quit">
+              <span class="pause-menu-btn-icon">🚪</span>
+              <span class="pause-menu-btn-text">QUIT TO MAIN SCREEN</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Sacred Character Key Unlock Dialog (Chinu) -->
       <div class="sacred-unlock-backdrop hidden" id="sacred-unlock-backdrop" role="dialog" aria-modal="true"
@@ -351,6 +384,7 @@
                 <li><kbd>F</kbd><span>Primary Signature Move (at 100% meter)</span></li>
                 <li><kbd>G</kbd><span>Secondary Signature (Chai Break, Putin Stabbing, Wall)</span></li>
                 <li><kbd>T</kbd> / <kbd>L</kbd> / <kbd>V</kbd> / <kbd>E</kbd><span>Taunt &amp; Flex, Lounge, Champ Pose, Arena Entry</span></li>
+                <li><kbd>ESC</kbd> / <kbd>⏸ PAUSE</kbd><span>Pause / Resume Match &amp; Open Pause Menu</span></li>
                 <li><kbd>H</kbd> / <kbd>F1</kbd><span>Open / Close this Controls Guide</span></li>
               </ul>
             </section>

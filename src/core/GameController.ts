@@ -298,9 +298,9 @@ export class GameController {
     this.physics = new PhysicsCombatSystem();
     this.effects = new EffectsManager(this.sceneManager.scene);
 
-      for (const id of CHARACTER_IDS) {
-        const isLeft = id === this.leftFighterId;
-        const isRight = id === this.rightFighterId;
+    for (const id of CHARACTER_IDS) {
+      const isLeft = id === this.leftFighterId;
+      const isRight = id === this.rightFighterId;
       this.registerCombatRig(id, isLeft || isRight, isLeft ? 1 : -1);
     }
 
@@ -353,6 +353,22 @@ export class GameController {
           this.gameManager.getState() === 'MATCH_OVER';
         this.pendingMatchRestartAfterModalClose = false;
         void this.prepareMatchAndStart(shouldStartFresh);
+      },
+      onPauseToggled: (paused) => {
+        if (paused) {
+          this.sound.playClick();
+          this.gameManager.pause();
+        } else {
+          this.sound.playClick();
+          if (!this.ui.isModalOpen() && !this.ui.isControlsGuideOpen()) {
+            this.gameManager.resume();
+          }
+        }
+      },
+      onQuitToSelect: () => {
+        this.pendingMatchRestartAfterModalClose = true;
+        this.sound.playClick();
+        this.gameManager.pause();
       },
       onRematch: () => {
         this.sound.playClick();
@@ -427,10 +443,10 @@ export class GameController {
                 const cheerState: FighterState | null = winnerAnim.hasState('POSE')
                   ? 'POSE'
                   : winnerAnim.hasState('DANCE')
-                  ? 'DANCE'
-                  : winnerAnim.hasState('CHAMP_POSE')
-                  ? 'CHAMP_POSE'
-                  : null;
+                    ? 'DANCE'
+                    : winnerAnim.hasState('CHAMP_POSE')
+                      ? 'CHAMP_POSE'
+                      : null;
                 if (cheerState) {
                   this.scheduleUnscaled(() => {
                     const gameState = this.gameManager.getState();
@@ -747,60 +763,60 @@ export class GameController {
       stage: needStage ? 0 : 1,
     };
 
-      const updateBar = (category: 'Character Data' | 'Stage Data', labelName: string) => {
-        if (this.disposed || token !== this.matchLoadToken) return;
-        const done =
-          progress.left * weights.left +
-          progress.right * weights.right +
-          progress.stage * weights.stage;
-        const pct = Math.min(99, Math.max(8, Math.round(8 + (done / totalWeight) * 90)));
-        this.maxMatchProgressPct = Math.max(this.maxMatchProgressPct, pct);
-        this.ui.setMatchLoaderState(
-          true,
-          this.maxMatchProgressPct,
-          `Loading ${category}: ${this.maxMatchProgressPct}% (${labelName})`
-        );
-      };
+    const updateBar = (category: 'Character Data' | 'Stage Data', labelName: string) => {
+      if (this.disposed || token !== this.matchLoadToken) return;
+      const done =
+        progress.left * weights.left +
+        progress.right * weights.right +
+        progress.stage * weights.stage;
+      const pct = Math.min(99, Math.max(8, Math.round(8 + (done / totalWeight) * 90)));
+      this.maxMatchProgressPct = Math.max(this.maxMatchProgressPct, pct);
+      this.ui.setMatchLoaderState(
+        true,
+        this.maxMatchProgressPct,
+        `Loading ${category}: ${this.maxMatchProgressPct}% (${labelName})`
+      );
+    };
 
-      const tasks: Promise<void>[] = [];
-      if (needLeft) {
-        tasks.push(
-          this.ensureCharacterCombatLoaded(leftId, (r) => {
-            progress.left = r;
-            updateBar('Character Data', FIGHTER_META[leftId].displayName);
-          })
-        );
-      }
-      if (needRight) {
-        tasks.push(
-          this.ensureCharacterCombatLoaded(rightId, (r) => {
-            progress.right = r;
-            updateBar('Character Data', FIGHTER_META[rightId].displayName);
-          })
-        );
-      }
-      if (needStage) {
-        tasks.push(
-          this.stageManager.loadStage(stageId, (r) => {
-            progress.stage = r;
-            updateBar('Stage Data', stageLabel);
-          })
-        );
-      }
+    const tasks: Promise<void>[] = [];
+    if (needLeft) {
+      tasks.push(
+        this.ensureCharacterCombatLoaded(leftId, (r) => {
+          progress.left = r;
+          updateBar('Character Data', FIGHTER_META[leftId].displayName);
+        })
+      );
+    }
+    if (needRight) {
+      tasks.push(
+        this.ensureCharacterCombatLoaded(rightId, (r) => {
+          progress.right = r;
+          updateBar('Character Data', FIGHTER_META[rightId].displayName);
+        })
+      );
+    }
+    if (needStage) {
+      tasks.push(
+        this.stageManager.loadStage(stageId, (r) => {
+          progress.stage = r;
+          updateBar('Stage Data', stageLabel);
+        })
+      );
+    }
 
-      try {
-        await Promise.all(tasks);
-        if (this.disposed || token !== this.matchLoadToken) {
-          return false;
-        }
-        this.ui.setMatchLoaderState(true, 100, `${stageLabel} & fighters ready!`);
-        return true;
-      } finally {
-        if (!this.disposed && token === this.matchLoadToken) {
-          this.ui.setMatchLoaderState(false, 100);
-        }
+    try {
+      await Promise.all(tasks);
+      if (this.disposed || token !== this.matchLoadToken) {
+        return false;
+      }
+      this.ui.setMatchLoaderState(true, 100, `${stageLabel} & fighters ready!`);
+      return true;
+    } finally {
+      if (!this.disposed && token === this.matchLoadToken) {
+        this.ui.setMatchLoaderState(false, 100);
       }
     }
+  }
 
   private async prepareMatchAndStart(startNewMatch: boolean): Promise<void> {
     const leftId = this.leftFighterId;
@@ -939,6 +955,11 @@ export class GameController {
       return;
     }
 
+    if (this.ui.isPauseMenuOpen()) {
+      this.sceneManager.render();
+      return;
+    }
+
     const effectiveTimeScale = this.koSlowMoActive
       ? Math.min(this.gameTimeScale, 0.25)
       : this.gameTimeScale;
@@ -985,8 +1006,8 @@ export class GameController {
           isCrouch && anim?.hasState('CROUCH_DEATH')
             ? 'CROUCH_DEATH'
             : anim?.hasState('DEAD')
-            ? 'DEAD'
-            : 'FALL_BACK';
+              ? 'DEAD'
+              : 'FALL_BACK';
         if (anim) {
           this.physics.setKnockedDown(id, true);
           this.physics.setMoveInput(id, 0, 0);
@@ -1008,8 +1029,8 @@ export class GameController {
           isCrouch && anim?.hasState('CROUCH_DEATH')
             ? 'CROUCH_DEATH'
             : anim?.hasState('DEAD')
-            ? 'DEAD'
-            : 'FALL_BACK';
+              ? 'DEAD'
+              : 'FALL_BACK';
         if (anim && anim.getState() !== fallState) {
           this.physics.setKnockedDown(id, true);
           this.physics.setMoveInput(id, 0, 0);
@@ -1662,18 +1683,18 @@ export class GameController {
       opts.hitType === 'car'
         ? 'HIT_CAR'
         : opts.hitType === 'groin'
-        ? 'HIT_GROIN'
-        : opts.hitType === 'head'
-        ? 'HIT_HEAD'
-        : opts.hitType === 'stomach'
-        ? 'HIT_STOMACH'
-        : opts.hitType === 'rib'
-        ? 'HIT_RIB'
-        : opts.hitType === 'big'
-        ? 'HIT_BIG'
-        : opts.hitType === 'legs'
-        ? 'HIT_LEGS'
-        : 'HIT';
+          ? 'HIT_GROIN'
+          : opts.hitType === 'head'
+            ? 'HIT_HEAD'
+            : opts.hitType === 'stomach'
+              ? 'HIT_STOMACH'
+              : opts.hitType === 'rib'
+                ? 'HIT_RIB'
+                : opts.hitType === 'big'
+                  ? 'HIT_BIG'
+                  : opts.hitType === 'legs'
+                    ? 'HIT_LEGS'
+                    : 'HIT';
     defenderAnim.transitionTo(targetHitState, 0.04, true);
     this.physics.applyDirectionalImpulse(
       defenderId,
@@ -1744,20 +1765,20 @@ export class GameController {
       move === 'punch_hook'
         ? 'PUNCH_HOOK'
         : move === 'punch_elbow'
-        ? 'PUNCH_ELBOW'
-        : move === 'punch_combo'
-        ? 'PUNCH_COMBO'
-        : move === 'kick_mma'
-        ? 'KICK_MMA'
-        : move === 'kick_back'
-        ? 'KICK_BACK'
-        : move === 'kick_low'
-        ? 'KICK_LOW'
-        : move === 'kick_flying'
-        ? 'KICK_FLYING'
-        : isKick
-        ? 'KICK'
-        : 'PUNCH';
+          ? 'PUNCH_ELBOW'
+          : move === 'punch_combo'
+            ? 'PUNCH_COMBO'
+            : move === 'kick_mma'
+              ? 'KICK_MMA'
+              : move === 'kick_back'
+                ? 'KICK_BACK'
+                : move === 'kick_low'
+                  ? 'KICK_LOW'
+                  : move === 'kick_flying'
+                    ? 'KICK_FLYING'
+                    : isKick
+                      ? 'KICK'
+                      : 'PUNCH';
 
     let damage = PUNCH_DAMAGE;
     if (move === 'kick_flying') damage = 26;
@@ -1773,20 +1794,20 @@ export class GameController {
       move === 'kick_flying'
         ? 3.6
         : move === 'kick_mma'
-        ? 3.1
-        : move === 'kick_back'
-        ? 2.6
-        : move === 'kick_low'
-        ? 2.2
-        : isKick
-        ? 2.9
-        : move === 'punch_hook'
-        ? 2.7
-        : move === 'punch_combo'
-        ? 2.3
-        : move === 'punch_elbow'
-        ? 2.5
-        : 2.4;
+          ? 3.1
+          : move === 'kick_back'
+            ? 2.6
+            : move === 'kick_low'
+              ? 2.2
+              : isKick
+                ? 2.9
+                : move === 'punch_hook'
+                  ? 2.7
+                  : move === 'punch_combo'
+                    ? 2.3
+                    : move === 'punch_elbow'
+                      ? 2.5
+                      : 2.4;
 
     this.cancelChinuEntry();
     if (attackerId === 'chinu') {
@@ -1904,20 +1925,20 @@ export class GameController {
       attackType === 'punch_hook'
         ? 'PUNCH_HOOK'
         : attackType === 'punch_elbow'
-        ? 'PUNCH_ELBOW'
-        : attackType === 'punch_combo'
-        ? 'PUNCH_COMBO'
-        : attackType === 'kick_mma'
-        ? 'KICK_MMA'
-        : attackType === 'kick_back'
-        ? 'KICK_BACK'
-        : attackType === 'kick_low'
-        ? 'KICK_LOW'
-        : attackType === 'kick_flying'
-        ? 'KICK_FLYING'
-        : isKick
-        ? 'KICK'
-        : 'PUNCH';
+          ? 'PUNCH_ELBOW'
+          : attackType === 'punch_combo'
+            ? 'PUNCH_COMBO'
+            : attackType === 'kick_mma'
+              ? 'KICK_MMA'
+              : attackType === 'kick_back'
+                ? 'KICK_BACK'
+                : attackType === 'kick_low'
+                  ? 'KICK_LOW'
+                  : attackType === 'kick_flying'
+                    ? 'KICK_FLYING'
+                    : isKick
+                      ? 'KICK'
+                      : 'PUNCH';
 
     const baseDamage = isKick ? CPU_KICK_DAMAGE : CPU_PUNCH_DAMAGE;
     const damage = Math.max(
@@ -2605,8 +2626,8 @@ export class GameController {
           ? isCrouch && challengerAnim.hasState('CROUCH_DEATH')
             ? 'CROUCH_DEATH'
             : challengerAnim.hasState('DEAD')
-            ? 'DEAD'
-            : 'FALL_BACK'
+              ? 'DEAD'
+              : 'FALL_BACK'
           : 'FALL_BACK';
         challengerAnim.transitionTo(fallState, 0.04, true);
         this.physics.applyDirectionalImpulse(challengerId, bossId, -7.6);

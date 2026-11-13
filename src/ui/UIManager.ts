@@ -41,6 +41,28 @@ const PORTRAIT_MAP: Record<CharacterId, string> = {
   amitabh: AMITABH_PORTRAIT_DATA_URL,
 };
 
+const PORTRAIT_STORAGE_PREFIX = 'immoral_combat_roster_portrait_v3_';
+
+export function loadCachedPortrait(id: CharacterId): string | null {
+  try {
+    return typeof localStorage !== 'undefined'
+      ? localStorage.getItem(`${PORTRAIT_STORAGE_PREFIX}${id}`)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCachedPortrait(id: CharacterId, dataUrl: string): void {
+  try {
+    if (typeof localStorage !== 'undefined' && dataUrl && dataUrl.startsWith('data:')) {
+      localStorage.setItem(`${PORTRAIT_STORAGE_PREFIX}${id}`, dataUrl);
+    }
+  } catch {
+    // quota exceeded or private mode, safely ignore
+  }
+}
+
 type RosterSlotId = SelectRosterSlotId;
 const ROSTER_ORDER = SELECT_ROSTER_ORDER;
 
@@ -116,6 +138,8 @@ export interface UIActionHandlers {
   onSelectModalOpened?: () => void;
   onSelectModalClosed?: () => void;
   onRematch?: () => void;
+  onPauseToggled?: (paused: boolean) => void;
+  onQuitToSelect?: () => void;
   onHealPriyanshu: () => void;
   onToggleMute: () => void;
   onMoveInput: (x: number, z: number) => void;
@@ -165,7 +189,12 @@ export class UIManager {
   private activeDifficulty: DifficultyLevel = 'medium';
 
   private readonly btnSoundToggle = document.getElementById('btn-sound-toggle')!;
-  private readonly btnOpenSelect = document.getElementById('btn-open-select')!;
+  private readonly btnPauseGame = document.getElementById('btn-pause-game') as HTMLButtonElement | null;
+  private readonly pauseMenuBackdrop = document.getElementById('pause-menu-backdrop');
+  private readonly btnPauseResume = document.getElementById('btn-pause-resume');
+  private readonly btnPauseRestart = document.getElementById('btn-pause-restart');
+  private readonly btnPauseControls = document.getElementById('btn-pause-controls');
+  private readonly btnPauseQuit = document.getElementById('btn-pause-quit');
   private readonly btnHealFighters = document.getElementById('btn-heal-fighters');
   private readonly btnControlsGuide = document.getElementById('btn-controls-guide');
   private readonly controlsGuideBackdrop = document.getElementById('controls-guide-backdrop');
@@ -257,13 +286,21 @@ export class UIManager {
   private actionStartY = 0;
   private toastTimeline?: gsap.core.Timeline;
   private quipHideTimer?: number;
-  private hoverPreviewTimer?: number;
   private lastQuip = '';
   private movementLocked = false;
   private pendingUnlockSlot: 'p1' | 'cpu' | null = null;
 
   private readonly initialDefaults = getDefaultMatchup();
-  private readonly portraitUrls: Record<CharacterId, string> = { ...PORTRAIT_MAP };
+  private readonly portraitUrls: Record<CharacterId, string> = (() => {
+    const map: Record<CharacterId, string> = { ...PORTRAIT_MAP };
+    for (const id of CHARACTER_IDS) {
+      const cached = loadCachedPortrait(id);
+      if (cached) {
+        map[id] = cached;
+      }
+    }
+    return map;
+  })();
   private selectActiveSlot: 'p1' | 'cpu' = 'p1';
   private selectP1: CharacterId = this.initialDefaults.player;
   private selectCpu: CharacterId = this.initialDefaults.opponent;
@@ -375,6 +412,7 @@ export class UIManager {
       const url = portraits[id];
       if (!url) return;
       this.portraitUrls[id] = url;
+      saveCachedPortrait(id, url);
       this.rosterImages[id].src = url;
       if (id === this.lastKnownPlayer || id === this.selectP1) {
         this.leftSlot.avatarImg.src = url;
@@ -415,8 +453,31 @@ export class UIManager {
       this.handlers.onToggleMute();
     });
 
-    this.btnOpenSelect.addEventListener('click', () => {
-      unlockAndBlur(this.btnOpenSelect);
+    this.btnPauseGame?.addEventListener('click', () => {
+      if (this.btnPauseGame) unlockAndBlur(this.btnPauseGame);
+      this.togglePause();
+    });
+
+    this.btnPauseResume?.addEventListener('click', () => {
+      if (this.btnPauseResume) unlockAndBlur(this.btnPauseResume as HTMLElement);
+      this.setPauseMenuOpen(false);
+    });
+
+    this.btnPauseRestart?.addEventListener('click', () => {
+      if (this.btnPauseRestart) unlockAndBlur(this.btnPauseRestart as HTMLElement);
+      this.setPauseMenuOpen(false);
+      this.handlers.onRematch?.();
+    });
+
+    this.btnPauseControls?.addEventListener('click', () => {
+      if (this.btnPauseControls) unlockAndBlur(this.btnPauseControls as HTMLElement);
+      this.toggleControlsGuide();
+    });
+
+    this.btnPauseQuit?.addEventListener('click', () => {
+      if (this.btnPauseQuit) unlockAndBlur(this.btnPauseQuit as HTMLElement);
+      this.setPauseMenuOpen(false);
+      this.handlers.onQuitToSelect?.();
       this.setModalOpen(true);
     });
 
@@ -734,14 +795,13 @@ export class UIManager {
     ROSTER_ORDER.forEach((slotId) => {
       const tile = this.rosterTiles[slotId];
       tile.addEventListener('pointerenter', () => {
-        this.previewRosterCursor(slotId, true);
+        this.previewRosterCursor(slotId);
       });
       tile.addEventListener('pointerleave', () => {
-        this.cancelPendingHoverPreview();
+        this.clearRosterHover();
       });
       tile.addEventListener('click', () => {
         unlockAndBlur(tile);
-        this.cancelPendingHoverPreview();
         this.confirmRosterSlot(slotId);
       });
     });
@@ -954,59 +1014,40 @@ export class UIManager {
     }
   }
 
-  private cancelPendingHoverPreview(): void {
-    if (this.hoverPreviewTimer) {
-      clearTimeout(this.hoverPreviewTimer);
-      this.hoverPreviewTimer = undefined;
-    }
-  }
-
-  private previewRosterCursor(slotId: RosterSlotId, debounce3D = false): void {
+  private previewRosterCursor(slotId: RosterSlotId): void {
     if (this.selectCursorSlot === slotId) return;
     this.selectCursorSlot = slotId;
-    this.cancelPendingHoverPreview();
-
-    if (!debounce3D) {
-      this.applyCursorFighterPreview(slotId);
-      this.renderSelectScreen();
-      return;
-    }
-
-    // Immediate highlight cursor feedback; wait 120ms dwell before downloading 3D GLB showcase assets.
-    this.renderSelectScreen();
-    this.hoverPreviewTimer = window.setTimeout(() => {
-      this.hoverPreviewTimer = undefined;
-      if (!this.isModalOpen() || this.selectCursorSlot !== slotId) return;
-      this.applyCursorFighterPreview(slotId);
-      this.renderSelectScreen();
-    }, 120);
+    this.syncRosterTilesHoverAndCursor();
   }
 
-  private applyCursorFighterPreview(slotId: RosterSlotId): void {
-    if (slotId !== 'random' && canSelectCharacter(slotId)) {
-      if (this.selectActiveSlot === 'p1') {
-        if (this.selectP1 !== slotId) {
-          this.selectP1 = slotId;
-          if (!getAvailableCharacterIdles(this.selectP1).includes(this.selectP1Idle)) {
-            this.selectP1Idle = 'idle-1';
-          }
-          if (this.selectCpu === this.selectP1) {
-            this.selectCpu = getFallbackOpponent(this.selectP1);
-            if (!getAvailableCharacterIdles(this.selectCpu).includes(this.selectCpuIdle)) {
-              this.selectCpuIdle = 'idle-1';
-            }
-            this.handlers.onPreviewSelectFighter('cpu', this.selectCpu, this.selectCpuIdle, false);
-          }
-          this.handlers.onPreviewSelectFighter('p1', this.selectP1, this.selectP1Idle, true);
-        }
-      } else if (slotId !== this.selectP1 && this.selectCpu !== slotId) {
-        this.selectCpu = slotId;
-        if (!getAvailableCharacterIdles(this.selectCpu).includes(this.selectCpuIdle)) {
-          this.selectCpuIdle = 'idle-1';
-        }
-        this.handlers.onPreviewSelectFighter('cpu', this.selectCpu, this.selectCpuIdle, true);
-      }
+  private clearRosterHover(): void {
+    this.selectCursorSlot = this.selectActiveSlot === 'p1' ? this.selectP1 : this.selectCpu;
+    this.syncRosterTilesHoverAndCursor();
+  }
+
+  private syncRosterTilesHoverAndCursor(): void {
+    const chinuUnlocked = isChinuUnlocked();
+    const activeTarget = this.selectActiveSlot === 'p1' ? 'P1' : 'OPPONENT';
+
+    if (this.selectCursorSlot === 'random') {
+      this.selectPromptText.textContent = `RANDOM FIGHTER — CLICK TO SELECT AS ${activeTarget}`;
+    } else if (this.selectCursorSlot === 'chinu' && !chinuUnlocked) {
+      this.selectPromptText.textContent = 'CHINU IS SACRED — CLICK TO UNLOCK 🔒';
+    } else if (this.selectCursorSlot) {
+      const name = getCharacterUpperName(this.selectCursorSlot);
+      this.selectPromptText.textContent = `${name} — CLICK TO SELECT AS ${activeTarget}`;
+    } else {
+      this.selectPromptText.textContent =
+        this.selectActiveSlot === 'p1' ? 'CHOOSE YOUR FIGHTER' : 'CHOOSE YOUR OPPONENT';
     }
+
+    ROSTER_ORDER.forEach((slotId) => {
+      const tile = this.rosterTiles[slotId];
+      const isP1 = slotId === this.selectP1;
+      const isCpu = slotId === this.selectCpu;
+      const isFocused = slotId === this.selectCursorSlot;
+      tile.classList.toggle('roster-tile--cursor-focus', isFocused && !isP1 && !isCpu);
+    });
   }
 
   private pickRandomCharacter(exclude?: CharacterId): CharacterId {
@@ -1064,7 +1105,8 @@ export class UIManager {
     if (!getAvailableCharacterIdles(this.selectCpu).includes(this.selectCpuIdle)) {
       this.selectCpuIdle = 'idle-1';
     }
-    this.launchSelectedMatchup();
+    this.handlers.onPreviewSelectFighter('cpu', this.selectCpu, this.selectCpuIdle, true);
+    this.renderSelectScreen();
   }
 
   private handleSelectBack(): void {
@@ -1104,8 +1146,18 @@ export class UIManager {
     this.selectTabP1.classList.toggle('select-slot-plate--active', this.selectActiveSlot === 'p1');
     this.selectTabCpu.classList.toggle('select-slot-plate--active', this.selectActiveSlot === 'cpu');
 
+    const isReadyToFight = Boolean(this.selectP1 && this.selectCpu && this.selectP1 !== this.selectCpu);
     if (this.selectCursorSlot === 'chinu' && !chinuUnlocked) {
       this.selectPromptText.textContent = 'CHINU IS SACRED — CLICK / ENTER SECRET KEY 🔒';
+    } else if (this.selectCursorSlot && this.selectCursorSlot !== this.selectP1 && this.selectCursorSlot !== this.selectCpu) {
+      const activeTarget = this.selectActiveSlot === 'p1' ? 'P1' : 'OPPONENT';
+      const name =
+        this.selectCursorSlot === 'random'
+          ? 'RANDOM FIGHTER'
+          : getCharacterUpperName(this.selectCursorSlot as CharacterId);
+      this.selectPromptText.textContent = `${name} — CLICK TO SELECT AS ${activeTarget}`;
+    } else if (isReadyToFight && this.selectActiveSlot === 'cpu') {
+      this.selectPromptText.textContent = 'READY! CLICK "START FIGHT" OR PICK FIGHTER';
     } else {
       this.selectPromptText.textContent =
         this.selectActiveSlot === 'p1' ? 'CHOOSE YOUR FIGHTER' : 'CHOOSE YOUR OPPONENT';
@@ -1123,21 +1175,15 @@ export class UIManager {
 
     this.syncSetupPills();
 
-    const p1CursorSlot: RosterSlotId =
-      this.selectActiveSlot === 'p1' && this.selectCursorSlot === 'random' ? 'random' : this.selectP1;
-    const cpuCursorSlot: RosterSlotId =
-      this.selectActiveSlot === 'cpu' && this.selectCursorSlot === 'random'
-        ? 'random'
-        : this.selectCpu;
-
     ROSTER_ORDER.forEach((slotId) => {
       const tile = this.rosterTiles[slotId];
-      const isP1 = slotId === p1CursorSlot;
-      const isCpu = slotId === cpuCursorSlot;
+      const isP1 = slotId === this.selectP1;
+      const isCpu = slotId === this.selectCpu;
       const isLockedSacred = slotId === 'chinu' && !chinuUnlocked;
-      const isFocusedSacred = slotId === 'chinu' && this.selectCursorSlot === 'chinu';
-      tile.classList.toggle('roster-tile--p1', isP1 || (isLockedSacred && isFocusedSacred && this.selectActiveSlot === 'p1'));
-      tile.classList.toggle('roster-tile--cpu', isCpu || (isLockedSacred && isFocusedSacred && this.selectActiveSlot === 'cpu'));
+      const isFocused = slotId === this.selectCursorSlot;
+      tile.classList.toggle('roster-tile--p1', isP1);
+      tile.classList.toggle('roster-tile--cpu', isCpu);
+      tile.classList.toggle('roster-tile--cursor-focus', isFocused && !isP1 && !isCpu);
       tile.classList.toggle('roster-tile--sacred-locked', isLockedSacred);
       tile.classList.toggle(
         'roster-tile--locked-other',
@@ -1256,8 +1302,34 @@ export class UIManager {
       return;
     }
 
+    if (this.isPauseMenuOpen()) {
+      if (event.code === 'Escape') {
+        event.preventDefault();
+        this.setPauseMenuOpen(false);
+        return;
+      }
+      if (event.code === 'KeyR') {
+        event.preventDefault();
+        this.setPauseMenuOpen(false);
+        this.handlers.onRematch?.();
+        return;
+      }
+      if (event.code === 'KeyH' || event.code === 'F1') {
+        event.preventDefault();
+        this.toggleControlsGuide();
+        return;
+      }
+      return;
+    }
+
     if (this.isModalOpen()) {
       this.handleSelectKeyDown(event);
+      return;
+    }
+
+    if (event.code === 'Escape') {
+      event.preventDefault();
+      this.setPauseMenuOpen(true);
       return;
     }
 
@@ -1401,6 +1473,7 @@ export class UIManager {
     this.resetTouchJoystick();
 
     if (open) {
+      this.setPauseMenuOpen(false);
       const defaults = getDefaultMatchup();
       this.selectP1 = canSelectCharacter(this.lastKnownPlayer)
         ? this.lastKnownPlayer
@@ -1430,6 +1503,38 @@ export class UIManager {
 
   public isModalOpen(): boolean {
     return !this.charModalBackdrop.classList.contains('hidden');
+  }
+
+  public isPauseMenuOpen(): boolean {
+    return Boolean(this.pauseMenuBackdrop && !this.pauseMenuBackdrop.classList.contains('hidden'));
+  }
+
+  public setPauseMenuOpen(open: boolean): void {
+    if (!this.pauseMenuBackdrop) return;
+    if (open) {
+      if (
+        this.isModalOpen() ||
+        this.isInitialLoaderOpen() ||
+        this.isMatchLoaderOpen()
+      ) {
+        return;
+      }
+      this.setControlsGuideOpen(false);
+      this.closeSacredUnlockModal();
+      this.pauseMenuBackdrop.classList.remove('hidden');
+      this.pressedKeys.clear();
+      this.resetTouchJoystick();
+      this.handlers.onPauseToggled?.(true);
+    } else {
+      if (!this.pauseMenuBackdrop.classList.contains('hidden')) {
+        this.pauseMenuBackdrop.classList.add('hidden');
+        this.handlers.onPauseToggled?.(false);
+      }
+    }
+  }
+
+  public togglePause(): void {
+    this.setPauseMenuOpen(!this.isPauseMenuOpen());
   }
 
   private renderFighterSlot(
@@ -1617,7 +1722,6 @@ export class UIManager {
     window.removeEventListener('touchstart', this.handleTouchCapableDetected);
     window.removeEventListener('pointerdown', this.handleTouchCapableDetected);
     if (this.quipHideTimer) clearTimeout(this.quipHideTimer);
-    this.cancelPendingHoverPreview();
     this.toastTimeline?.kill();
   }
 }
