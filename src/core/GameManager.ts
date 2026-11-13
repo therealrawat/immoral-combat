@@ -3,7 +3,7 @@ import gsap from 'gsap';
 
 export type GameState = 'INIT' | 'INTRO' | 'FIGHTING' | 'ROUND_END' | 'MATCH_OVER';
 export type PlayerSlot = 'player1' | 'player2';
-export type AnnouncementVariant = 'round' | 'fight' | 'ko' | 'time-over' | 'win';
+export type AnnouncementVariant = 'round' | 'ready' | 'fight' | 'ko' | 'time-over' | 'win';
 
 export interface FighterParticipantConfig {
   id?: string;
@@ -99,7 +99,7 @@ interface FighterRuntimeState {
 const DEFAULT_ROUND_DURATION = 99;
 const DEFAULT_ROUNDS_TO_WIN = 2;
 const DEFAULT_SIGNATURE_GAIN_ON_DAMAGE = 10;
-const DEFAULT_INTRO_DURATION_SEC = 3;
+const DEFAULT_INTRO_DURATION_SEC = 3.2;
 const DEFAULT_KO_RESET_DELAY_MS = 4000;
 const DEFAULT_SLOW_MO_DURATION_MS = 1400;
 const DEFAULT_SLOW_MO_FPS = 15;
@@ -476,12 +476,14 @@ export class GameManager {
     this.setControlsLocked(true);
     this.callbacks.onRoundStart?.(roundNum);
 
-    const roundHoldSec = this.introDurationSeconds * (1.85 / 3);
-    const fightSwitchTimeSec = this.introDurationSeconds * (1.9 / 3);
+    const isFinalRound =
+      this.players.player1.roundWins === this.roundsToWin - 1 &&
+      this.players.player2.roundWins === this.roundsToWin - 1;
+    const roundTitle = isFinalRound ? 'FINAL ROUND' : `ROUND ${roundNum}`;
     const timelineProxy = { progress: 0 };
 
     this.showAnnouncement(
-      `ROUND ${roundNum}`,
+      roundTitle,
       `${this.players.player1.config.name.toUpperCase()}  VS  ${this.players.player2.config.name.toUpperCase()}`,
       'round'
     );
@@ -499,21 +501,32 @@ export class GameManager {
     });
 
     tl.to(timelineProxy, {
-      progress: 0.62,
-      duration: roundHoldSec,
+      progress: 0.36,
+      duration: 1.15,
       ease: 'none',
     });
 
     tl.call(() => {
       if (this.disposed) return;
+      this.showAnnouncement('READY', 'GET READY FOR BATTLE', 'ready');
+    }, undefined, 1.15);
+
+    tl.to(timelineProxy, {
+      progress: 0.66,
+      duration: 0.90,
+      ease: 'none',
+    }, 1.15);
+
+    tl.call(() => {
+      if (this.disposed) return;
       this.showAnnouncement('FIGHT!', 'UNLEASH YOUR FURY', 'fight');
-    }, undefined, fightSwitchTimeSec);
+    }, undefined, 2.05);
 
     tl.to(timelineProxy, {
       progress: 1,
-      duration: Math.max(0.05, this.introDurationSeconds - fightSwitchTimeSec),
+      duration: Math.max(0.05, this.introDurationSeconds - 2.05),
       ease: 'none',
-    }, fightSwitchTimeSec);
+    }, 2.05);
 
     this.introTimeline = tl;
   }

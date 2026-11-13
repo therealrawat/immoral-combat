@@ -326,18 +326,24 @@ export class GameController {
       onSelectDifficulty: (level) => this.setDifficulty(level),
       onControlsGuideToggled: (open) => {
         if (open) {
+          this.sound.playBookOpen();
           this.gameManager.pause();
-        } else if (!this.ui.isModalOpen()) {
-          this.gameManager.resume();
+        } else {
+          this.sound.playBookClose();
+          if (!this.ui.isModalOpen()) {
+            this.gameManager.resume();
+          }
         }
       },
       onPreviewSelectFighter: (side, char, variant: SelectIdleVariant, animate = true) => {
+        void this.sound.playPlayerSlot(side === 'p1' ? 'player1' : 'player2');
         void this.selectStage.setFighter(side, char, variant, animate);
       },
       onSelectModalOpened: () => {
         this.matchLoadToken++;
         this.ui.setMatchLoaderState(false);
         this.sound.playClick();
+        this.sound.playCharacterSelect();
         this.gameManager.pause();
       },
       onSelectModalClosed: () => {
@@ -391,6 +397,25 @@ export class GameController {
         onSlowMoChange: (active) => {
           this.koSlowMoActive = active;
         },
+        onAnnouncementPhase: (phase, title) => {
+          if (phase === 'round') {
+            const isFinal = title.toUpperCase().includes('FINAL');
+            const roundMatch = /(\d+)/.exec(title);
+            const roundNum = roundMatch ? parseInt(roundMatch[1], 10) : 1;
+            void this.sound.playRoundVoice(roundNum, isFinal);
+          } else if (phase === 'ready') {
+            void this.sound.playReadyVoice();
+          } else if (phase === 'fight') {
+            void this.sound.playFightVoice();
+          } else if (phase === 'time-over') {
+            this.sound.playTimeOverVoice();
+          }
+        },
+        onTimerTick: (secondsRemaining) => {
+          if (secondsRemaining <= 10 && secondsRemaining >= 1) {
+            this.sound.playCountdown(secondsRemaining);
+          }
+        },
         onRoundEnd: (result) => {
           if (result.reason === 'ko') {
             this.sound.playKOBell();
@@ -436,11 +461,19 @@ export class GameController {
           this.cpuAi.reset(performance.now(), 3200);
           this.syncHUD();
         },
-        onMatchOver: () => {
+        onMatchOver: (winner) => {
           this.isCinematicActive = false;
           this.physics.setMoveInput(this.leftFighterId, 0, 0);
           this.physics.setMoveInput(this.rightFighterId, 0, 0);
           this.syncHUD();
+          if (winner === 'draw') {
+            this.sound.playMatchEndVoice(false, true);
+          } else {
+            const p1Won = winner === 'player1';
+            const isFlawless =
+              p1Won && (this.fighterHp.get(this.leftFighterId) ?? 0) >= FIGHTER_MAX_HP;
+            this.sound.playMatchEndVoice(p1Won, false, isFlawless);
+          }
         },
       },
     });
@@ -1476,6 +1509,7 @@ export class GameController {
 
   private handleCounterAction(): void {
     if (this.gameManager.isControlsLocked()) return;
+    this.sound.playComboBreaker();
     if (this.selectedCharacter === 'chinu' || this.opponentCharacter === 'chinu') {
       const challenger =
         this.opponentCharacter === 'chinu' ? this.selectedCharacter : this.opponentCharacter;
@@ -1650,6 +1684,9 @@ export class GameController {
     this.effects.spawnPunchImpact(impactPoint, damage, opts.label);
     this.maybeSpawnCombatBlood(defenderId, attackerId, impactPoint, damage);
     this.sound.playPunchHit(opts.comboNote);
+    if (opts.hitType === 'groin') {
+      this.sound.playMetalClang();
+    }
     this.sceneManager.triggerShake(opts.shakeIntensity, opts.shakeDuration);
   }
 
@@ -2816,6 +2853,9 @@ export class GameController {
 
     if (countCombo) {
       this.comboHits += 1;
+      if (this.comboHits === 4 || this.comboHits === 8) {
+        this.sound.playComboVoice();
+      }
       this.stressReliefPercent = Math.min(
         100,
         this.stressReliefPercent + Math.round(damage * 0.65)

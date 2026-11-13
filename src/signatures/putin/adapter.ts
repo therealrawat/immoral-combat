@@ -104,7 +104,7 @@ export function runPutinSpecialAbility(
           ctx.setQuip(ctx.getDisplayName(attackerId), 'No diplomacy today... 🗡️');
         },
         onKnifeSpawn: () => {
-          ctx.sound.playWhoosh(1.35);
+          ctx.sound.playKnifeDraw();
           const handBone = putinMoves.findRightHandBone();
           const spawnPos = handBone
             ? handBone.getWorldPosition(new THREE.Vector3())
@@ -118,6 +118,8 @@ export function runPutinSpecialAbility(
         onKnifeStabImpact: (impactPos, damage) => {
           targetAnim.transitionTo('HIT', 0.12, true);
           ctx.setTimeScale(CINEMATIC_FREEZE_TIME_SCALE);
+          ctx.sound.playKnifeSlice();
+          ctx.sound.playChop();
           ctx.sound.playSignatureImpact();
           const hitPoint = impactPos.clone().setY(1.35);
           ctx.effects.spawnPunchImpact(hitPoint, damage, 'KGB CRITICAL STAB! 🗡️💥');

@@ -1,10 +1,95 @@
 /**
- * Synthesizes comical arcade fighting sound effects using the Web Audio API.
- * Zero external audio assets required; cleanly no-ops in headless/muted environments.
+ * Synthesizes comical arcade fighting sound effects using the Web Audio API
+ * and plays authentic voice lines & SFX from the `sound/` directory.
  */
+
+const AUDIO_GLOB_URLS = import.meta.glob<string>('../../sound/*.ogg', {
+  query: '?url',
+  import: 'default',
+  eager: true,
+});
+
+function buildSoundUrlMap(): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const [rawPath, url] of Object.entries(AUDIO_GLOB_URLS)) {
+    const normalized = rawPath.replace(/\\/g, '/');
+    const match = /sound\/(.+)\.ogg$/i.exec(normalized);
+    if (!match) continue;
+    const stem = match[1];
+    const lowerStem = stem.toLowerCase();
+
+    map.set(stem, url);
+    map.set(lowerStem, url);
+    map.set(`${lowerStem}.ogg`, url);
+
+    const noPunct = lowerStem.replace(/[^a-z0-9]/g, '');
+    const kebab = lowerStem.replace(/[_'\s]+/g, '-');
+    const snake = lowerStem.replace(/[-'\s]+/g, '_');
+    map.set(noPunct, url);
+    map.set(kebab, url);
+    map.set(snake, url);
+  }
+
+  // Common aliases
+  const aliasEntries: Array<[string, string]> = [
+    ['tie', "it's_a_tie"],
+    ['draw', "it's_a_tie"],
+    ['its_a_tie', "it's_a_tie"],
+    ['its-a-tie', "it's_a_tie"],
+    ['itsatie', "it's_a_tie"],
+    ['youwin', 'you_win'],
+    ['you-win', 'you_win'],
+    ['youlose', 'you_lose'],
+    ['you-lose', 'you_lose'],
+    ['round1', 'round_1'],
+    ['round-1', 'round_1'],
+    ['round2', 'round_2'],
+    ['round-2', 'round_2'],
+    ['round3', 'round_3'],
+    ['round-3', 'round_3'],
+    ['round4', 'round_4'],
+    ['round-4', 'round_4'],
+    ['round5', 'round_5'],
+    ['round-5', 'round_5'],
+    ['finalround', 'final_round'],
+    ['final-round', 'final_round'],
+    ['combobreaker', 'combo_breaker'],
+    ['combo-breaker', 'combo_breaker'],
+    ['flawlessvictory', 'flawless_victory'],
+    ['flawless-victory', 'flawless_victory'],
+    ['gameover', 'game_over'],
+    ['game-over', 'game_over'],
+    ['drawknife', 'drawKnife1'],
+    ['draw-knife', 'drawKnife1'],
+    ['knifeslice', 'knifeSlice'],
+    ['knife-slice', 'knifeSlice'],
+    ['knife_slice', 'knifeSlice'],
+    ['chooseyourcharacter', 'choose_your_character'],
+    ['choose-your-character', 'choose_your_character'],
+  ];
+
+  for (const [alias, targetKey] of aliasEntries) {
+    const targetUrl = map.get(targetKey) ?? map.get(targetKey.toLowerCase());
+    if (targetUrl && !map.has(alias)) {
+      map.set(alias, targetUrl);
+    }
+  }
+
+  return map;
+}
+
 export class SoundManager {
+  private static readonly soundUrls: Map<string, string> = buildSoundUrlMap();
+
   private ctx: AudioContext | null = null;
   private noiseBuffer: AudioBuffer | null = null;
+  private masterGainNode: GainNode | null = null;
+  private voiceGainNode: GainNode | null = null;
+  private sfxGainNode: GainNode | null = null;
+  private currentVoiceSource: AudioBufferSourceNode | null = null;
+
+  private readonly bufferCache = new Map<string, AudioBuffer>();
+  private readonly pendingLoads = new Map<string, Promise<AudioBuffer | null>>();
   private muted = false;
 
   public isMuted(): boolean {
@@ -13,10 +98,13 @@ export class SoundManager {
 
   public setMuted(muted: boolean): void {
     this.muted = muted;
+    if (this.masterGainNode && this.ctx) {
+      this.masterGainNode.gain.setValueAtTime(muted ? 0 : 1, this.ctx.currentTime);
+    }
   }
 
   public toggleMute(): boolean {
-    this.muted = !this.muted;
+    this.setMuted(!this.muted);
     if (!this.muted) {
       this.playClick();
     }
@@ -24,12 +112,16 @@ export class SoundManager {
   }
 
   /**
-   * Unlocks Web Audio on the first user gesture (click/keydown).
+   * Unlocks Web Audio on the first user gesture (click/keydown) and pre-warms essential voices.
    */
   public unlock(): void {
     const ctx = this.ensureContext();
     if (ctx && ctx.state === 'suspended') {
-      void ctx.resume();
+      void ctx.resume().then(() => {
+        void this.preloadEssentialSounds();
+      });
+    } else if (ctx) {
+      void this.preloadEssentialSounds();
     }
   }
 
@@ -42,11 +134,351 @@ export class SoundManager {
       if (!AudioCtx) return null;
       this.ctx = new AudioCtx();
       this.noiseBuffer = this.createNoiseBuffer(this.ctx);
+
+      this.masterGainNode = this.ctx.createGain();
+      this.masterGainNode.gain.setValueAtTime(this.muted ? 0 : 1, this.ctx.currentTime);
+      this.masterGainNode.connect(this.ctx.destination);
+
+      this.voiceGainNode = this.ctx.createGain();
+      this.voiceGainNode.gain.setValueAtTime(1.0, this.ctx.currentTime);
+      this.voiceGainNode.connect(this.masterGainNode);
+
+      this.sfxGainNode = this.ctx.createGain();
+      this.sfxGainNode.gain.setValueAtTime(0.85, this.ctx.currentTime);
+      this.sfxGainNode.connect(this.masterGainNode);
     }
     if (this.ctx.state === 'suspended') {
       void this.ctx.resume();
     }
     return this.ctx;
+  }
+
+  private normalizeKey(name: string): string {
+    let s = name.trim().toLowerCase();
+    if (s.endsWith('.ogg')) {
+      s = s.slice(0, -4);
+    }
+    const lastSlash = Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\'));
+    if (lastSlash >= 0) {
+      s = s.slice(lastSlash + 1);
+    }
+    return s;
+  }
+
+  /**
+   * Fetches and decodes an audio buffer for a given sound asset name.
+   */
+  public async loadSound(name: string): Promise<AudioBuffer | null> {
+    const key = this.normalizeKey(name);
+    if (this.bufferCache.has(key)) {
+      return this.bufferCache.get(key)!;
+    }
+    const pending = this.pendingLoads.get(key);
+    if (pending) {
+      return pending;
+    }
+
+    const url = SoundManager.soundUrls.get(key) ?? SoundManager.soundUrls.get(name);
+    if (!url) {
+      console.warn(`[SoundManager] Unknown sound asset: "${name}" (key: "${key}")`);
+      return null;
+    }
+
+    const p = (async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const arrayBuf = await res.arrayBuffer();
+        const ctx = this.ensureContext();
+        if (!ctx) return null;
+        const audioBuf = await ctx.decodeAudioData(arrayBuf);
+        this.bufferCache.set(key, audioBuf);
+        return audioBuf;
+      } catch (err) {
+        console.warn(`[SoundManager] Failed to load/decode "${name}" from ${url}:`, err);
+        return null;
+      } finally {
+        this.pendingLoads.delete(key);
+      }
+    })();
+
+    this.pendingLoads.set(key, p);
+    return p;
+  }
+
+  /** Preloads core fight announcers & essential effects. */
+  public async preloadEssentialSounds(): Promise<void> {
+    const essentials = [
+      'round_1',
+      'round_2',
+      'round_3',
+      'round_4',
+      'round_5',
+      'final_round',
+      'ready',
+      'fight',
+      'begin',
+      'you_win',
+      'you_lose',
+      'game_over',
+      'flawless_victory',
+      'winner',
+      'loser',
+      "it's_a_tie",
+      'time',
+      'combo',
+      'combo_breaker',
+      'choose_your_character',
+      'player_1',
+      'player_2',
+      'prepare_yourself',
+      'drawKnife1',
+      'drawKnife2',
+      'knifeSlice',
+      'knifeSlice2',
+      'chop',
+      'metalPot1',
+      'metalPot2',
+      'footstep01',
+      'footstep02',
+      'bookOpen',
+      'bookClose',
+    ];
+    await Promise.allSettled(essentials.map((name) => this.loadSound(name)));
+  }
+
+  /**
+   * Plays a voice announcement (e.g. "Round 1", "You Win!", "Fight!").
+   * By default interrupts any currently active announcer voice line to avoid garbled speech.
+   */
+  public async playVoice(
+    name: string,
+    options: {
+      volume?: number;
+      interruptPrevious?: boolean;
+      playbackRate?: number;
+      onEnded?: () => void;
+    } = {}
+  ): Promise<number> {
+    if (this.muted) return 0;
+    const ctx = this.ensureContext();
+    if (!ctx) return 0;
+
+    const {
+      volume = 1.0,
+      interruptPrevious = true,
+      playbackRate = 1.0,
+      onEnded,
+    } = options;
+
+    if (interruptPrevious && this.currentVoiceSource) {
+      try {
+        this.currentVoiceSource.stop();
+        this.currentVoiceSource.disconnect();
+      } catch {
+        // already stopped
+      }
+      this.currentVoiceSource = null;
+    }
+
+    const key = this.normalizeKey(name);
+    let buffer = this.bufferCache.get(key);
+    if (!buffer) {
+      buffer = (await this.loadSound(name)) ?? undefined;
+    }
+    if (!buffer || this.muted) return 0;
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.value = playbackRate;
+
+    const gain = ctx.createGain();
+    gain.gain.value = volume;
+
+    source.connect(gain);
+    if (this.voiceGainNode) {
+      gain.connect(this.voiceGainNode);
+    } else {
+      gain.connect(this.masterGainNode ?? ctx.destination);
+    }
+
+    if (interruptPrevious) {
+      this.currentVoiceSource = source;
+    }
+
+    source.onended = () => {
+      if (this.currentVoiceSource === source) {
+        this.currentVoiceSource = null;
+      }
+      try {
+        source.disconnect();
+        gain.disconnect();
+      } catch {
+        // cleanup
+      }
+      onEnded?.();
+    };
+
+    source.start();
+    return buffer.duration / playbackRate;
+  }
+
+  /**
+   * Plays an interactive SFX clip from the sound library (knife, pot clank, cloth, footsteps, etc.).
+   */
+  public async playSfx(
+    name: string,
+    options: {
+      volume?: number;
+      playbackRate?: number;
+      detune?: number;
+      onEnded?: () => void;
+    } = {}
+  ): Promise<number> {
+    if (this.muted) return 0;
+    const ctx = this.ensureContext();
+    if (!ctx) return 0;
+
+    const { volume = 1.0, playbackRate = 1.0, detune = 0, onEnded } = options;
+
+    const key = this.normalizeKey(name);
+    let buffer = this.bufferCache.get(key);
+    if (!buffer) {
+      buffer = (await this.loadSound(name)) ?? undefined;
+    }
+    if (!buffer || this.muted) return 0;
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.value = playbackRate;
+    if (detune !== 0 && 'detune' in source) {
+      source.detune.value = detune;
+    }
+
+    const gain = ctx.createGain();
+    gain.gain.value = volume;
+
+    source.connect(gain);
+    if (this.sfxGainNode) {
+      gain.connect(this.sfxGainNode);
+    } else {
+      gain.connect(this.masterGainNode ?? ctx.destination);
+    }
+
+    source.onended = () => {
+      try {
+        source.disconnect();
+        gain.disconnect();
+      } catch {
+        // cleanup
+      }
+      onEnded?.();
+    };
+
+    source.start();
+    return buffer.duration / playbackRate;
+  }
+
+  public playRoundVoice(roundNum: number, isFinalRound = false): Promise<number> {
+    if (isFinalRound) {
+      return this.playVoice('final_round');
+    }
+    const clamped = Math.max(1, Math.min(5, roundNum));
+    return this.playVoice(`round_${clamped}`);
+  }
+
+  public playReadyVoice(): Promise<number> {
+    return this.playVoice('ready');
+  }
+
+  public playFightVoice(): Promise<number> {
+    return this.playVoice('fight');
+  }
+
+  public playMatchEndVoice(p1Won: boolean, isDraw = false, isFlawless = false): void {
+    if (isDraw) {
+      void this.playVoice("it's_a_tie");
+      return;
+    }
+    if (p1Won) {
+      if (isFlawless) {
+        void this.playVoice('flawless_victory').then((dur) => {
+          setTimeout(() => {
+            void this.playVoice('you_win');
+          }, Math.max(1000, (dur || 1.1) * 1000 * 0.95));
+        });
+      } else {
+        void this.playVoice('you_win');
+      }
+    } else {
+      void this.playVoice('you_lose').then((dur) => {
+        setTimeout(() => {
+          void this.playVoice('game_over');
+        }, Math.max(1150, (dur || 1.25) * 1000 * 0.9));
+      });
+    }
+  }
+
+  public playTimeOverVoice(): void {
+    void this.playVoice('time');
+  }
+
+  public playCountdown(secondsRemaining: number): void {
+    if (secondsRemaining >= 1 && secondsRemaining <= 10) {
+      void this.playVoice(String(secondsRemaining), { volume: 0.85, interruptPrevious: false });
+    }
+  }
+
+  public playComboBreaker(): void {
+    void this.playVoice('combo_breaker', { volume: 1.15, interruptPrevious: false });
+  }
+
+  public playComboVoice(): void {
+    void this.playVoice('combo', { volume: 1.0, interruptPrevious: false });
+  }
+
+  public playCharacterSelect(): void {
+    void this.playVoice('choose_your_character', { volume: 1.0 });
+  }
+
+  public playPlayerSlot(slot: 'player1' | 'player2'): void {
+    void this.playVoice(slot === 'player1' ? 'player_1' : 'player_2', { volume: 0.9 });
+  }
+
+  public playKnifeDraw(): void {
+    const variants = ['drawKnife1', 'drawKnife2', 'drawKnife3'];
+    const chosen = variants[Math.floor(Math.random() * variants.length)];
+    void this.playSfx(chosen, { volume: 1.0 });
+  }
+
+  public playKnifeSlice(): void {
+    const variants = ['knifeSlice', 'knifeSlice2'];
+    const chosen = variants[Math.floor(Math.random() * variants.length)];
+    void this.playSfx(chosen, { volume: 1.15 });
+  }
+
+  public playChop(): void {
+    void this.playSfx('chop', { volume: 1.0 });
+  }
+
+  public playMetalClang(): void {
+    const variants = ['metalPot1', 'metalPot2', 'metalPot3', 'metalClick'];
+    const chosen = variants[Math.floor(Math.random() * variants.length)];
+    void this.playSfx(chosen, { volume: 0.9 });
+  }
+
+  public playBookOpen(): void {
+    void this.playSfx('bookOpen', { volume: 0.75 });
+  }
+
+  public playBookClose(): void {
+    void this.playSfx('bookClose', { volume: 0.75 });
+  }
+
+  public playFootstep(): void {
+    const idx = Math.floor(Math.random() * 10);
+    const name = `footstep0${idx}`;
+    void this.playSfx(name, { volume: 0.35, detune: (Math.random() - 0.5) * 120 });
   }
 
   private createNoiseBuffer(ctx: AudioContext): AudioBuffer {
