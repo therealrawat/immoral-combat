@@ -184,6 +184,23 @@ export class AnimationController {
     } else if (!nextAction && resolvedState === 'BLUSH') {
       resolvedState = 'KISS';
       nextAction = this.actions.get(resolvedState);
+    } else if (!nextAction && resolvedState === 'FALL_BACK') {
+      resolvedState = 'DEAD';
+      nextAction = this.actions.get(resolvedState);
+      if (!nextAction) {
+        resolvedState = 'HIT';
+        nextAction = this.actions.get(resolvedState);
+      }
+    } else if (!nextAction && resolvedState === 'DEAD') {
+      resolvedState = 'FALL_BACK';
+      nextAction = this.actions.get(resolvedState);
+      if (!nextAction) {
+        resolvedState = 'HIT';
+        nextAction = this.actions.get(resolvedState);
+      }
+    } else if (!nextAction && resolvedState === 'GET_UP') {
+      resolvedState = 'IDLE';
+      nextAction = this.actions.get(resolvedState);
     }
 
     if (resolvedState === this.currentState && !restartIfSame) {

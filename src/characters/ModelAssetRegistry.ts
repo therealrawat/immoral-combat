@@ -96,6 +96,9 @@ function buildModelAssetRegistry(): SplitModelRegistry {
       if (normalizedNoParen === 'kiss-1') {
         aliases.push('kiss1', 'kiss-(1)', 'priyanshu-kiss', 'kiss-partner');
       }
+      if (normalizedNoParen === 'stumble-backwards' || kebab === 'stumble-backwards') {
+        aliases.push('stumble', 'fall-back', 'fall', 'knockdown');
+      }
       if (kebab.endsWith('-animation')) {
         const stripped = kebab.replace(/-animation$/, '');
         aliases.push(stripped);
@@ -162,6 +165,9 @@ function buildModelAssetRegistry(): SplitModelRegistry {
     ['hit', ['hit-to-body', 'stomach-hit', 'rib-hit', 'head-hit', 'big-hit-to-head']],
     ['block', ['body-block']],
     ['dead', ['dead-animation', 'dead', 'death', 'ko']],
+    ['fall-back', ['stumble-backwards', 'stumble', 'dead-animation', 'dead']],
+    ['fall', ['stumble-backwards', 'stumble', 'dead-animation', 'dead']],
+    ['stumble', ['stumble-backwards', 'stumble']],
     ['kiss', ['kiss', 'kiss-1']],
     ['kiss-1', ['kiss-1', 'kiss-(1)', 'kiss1']],
     ['blush', ['kiss-1', 'kiss-(1)', 'kiss1', 'kiss']],
@@ -269,6 +275,13 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     clipSuffix: 'Dead',
     moveKeys: ['dead-animation', 'dead', 'death', 'ko'],
     defaultSpeed: 1.0,
+    stripHorizontalRootMotion: true,
+  },
+  {
+    state: 'FALL_BACK',
+    clipSuffix: 'FallBack',
+    moveKeys: ['stumble-backwards', 'stumble', 'fall-back', 'fall'],
+    defaultSpeed: 1.2,
     stripHorizontalRootMotion: true,
   },
   {
