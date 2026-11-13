@@ -181,6 +181,9 @@ export class AnimationController {
     ) {
       resolvedState = 'HIT';
       nextAction = this.actions.get(resolvedState);
+    } else if (!nextAction && resolvedState === 'BLUSH') {
+      resolvedState = 'KISS';
+      nextAction = this.actions.get(resolvedState);
     }
 
     if (resolvedState === this.currentState && !restartIfSame) {

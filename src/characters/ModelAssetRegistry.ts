@@ -91,6 +91,11 @@ function buildModelAssetRegistry(): SplitModelRegistry {
       const relSubKebab = relSub.replace(/[\s_]+/g, '-');
 
       const aliases = [fileStemLower, kebab, compact, relSub, relSubKebab];
+      const normalizedNoParen = fileStemLower.replace(/[()]/g, '').trim().replace(/[\s_]+/g, '-');
+      aliases.push(normalizedNoParen);
+      if (normalizedNoParen === 'kiss-1') {
+        aliases.push('kiss1', 'kiss-(1)', 'priyanshu-kiss', 'kiss-partner');
+      }
       if (kebab.endsWith('-animation')) {
         const stripped = kebab.replace(/-animation$/, '');
         aliases.push(stripped);
@@ -158,6 +163,8 @@ function buildModelAssetRegistry(): SplitModelRegistry {
     ['block', ['body-block']],
     ['dead', ['dead-animation', 'dead', 'death', 'ko']],
     ['kiss', ['kiss', 'kiss-1']],
+    ['kiss-1', ['kiss-1', 'kiss-(1)', 'kiss1']],
+    ['blush', ['kiss-1', 'kiss-(1)', 'kiss1', 'kiss']],
   ];
 
   for (const [semanticKey, candidateKeys] of aliasDefaults) {
@@ -268,6 +275,13 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     state: 'KISS',
     clipSuffix: 'Kiss',
     moveKeys: ['kiss', 'kiss-1'],
+    defaultSpeed: 1.89,
+    stripHorizontalRootMotion: true,
+  },
+  {
+    state: 'BLUSH',
+    clipSuffix: 'Blush',
+    moveKeys: ['kiss-1', 'kiss-(1)', 'kiss1', 'kiss'],
     defaultSpeed: 1.0,
     stripHorizontalRootMotion: true,
   },
@@ -340,7 +354,7 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
     PUNCH: { moveKeys: ['elbow-punching', 'punching'], clipName: 'ChinuNativeElbowPunch', speed: 2.35 },
     KICK: { moveKeys: ['mma-kick', 'kicking'], clipName: 'ChinuNativeMmaKick', speed: 2.1 },
     MUAY_THAI: { moveKeys: ['mix-kick-punch', 'quad-punch'], clipName: 'ChinuNativeMuayThai', speed: 2.15 },
-    KISS: { moveKeys: ['kiss', 'kiss-1'], clipName: 'ChinuNativeKiss', speed: 1.0 },
+    KISS: { moveKeys: ['kiss'], clipName: 'ChinuNativeKiss', speed: 1.89, stripHorizontalRootMotion: true },
     CHAMP_POSE: { moveKeys: ['breathing-idle'], clipName: 'ChinuNativeChampPose', speed: 1.0, holdDurationSec: 2.5 },
     DANCE: { moveKeys: ['cheering', 'excited'], clipName: 'ChinuNativeCheering', speed: 1.25, stripHorizontalRootMotion: true },
     POSE: { moveKeys: ['victory'], clipName: 'ChinuNativeChampVictory', speed: 1.25, stripHorizontalRootMotion: true },
@@ -357,6 +371,8 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
     PUNCH: { moveKeys: ['punching', 'hook-punch'], speed: 2.4 },
     KICK: { moveKeys: ['flying-kick', 'kicking'], clipName: 'PriyanshuNativeFlyingKick', speed: 2.2 },
     MUAY_THAI: { moveKeys: ['mix-kick-punch', 'quad-punch'], clipName: 'PriyanshuNativeMuayThai', speed: 2.2 },
+    BLUSH: { moveKeys: ['kiss-1', 'kiss-(1)', 'kiss1'], clipName: 'PriyanshuNativeKiss', speed: 1.0, stripHorizontalRootMotion: true },
+    KISS: { moveKeys: ['kiss-1', 'kiss-(1)', 'kiss1'], clipName: 'PriyanshuNativeKiss', speed: 1.0, stripHorizontalRootMotion: true },
     POSE: { moveKeys: ['excited'], clipName: 'PriyanshuNativeExcitedVictory', speed: 1.35, stripHorizontalRootMotion: true },
     DANCE: { moveKeys: ['victory', 'clapping'], clipName: 'PriyanshuNativeVictoryDance', speed: 1.25, stripHorizontalRootMotion: true },
   },

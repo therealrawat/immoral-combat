@@ -203,9 +203,9 @@ export class SceneManager {
   public triggerRomanticCloseUp(
     center: THREE.Vector3,
     pairDir: THREE.Vector3,
-    holdSeconds = 0.88
+    holdSeconds = 3.0
   ): void {
-    this.animateSideCloseUp(center, pairDir, 3.22, 2.12, 1.98, 0.34, holdSeconds, 0.46);
+    this.animateSideCloseUp(center, pairDir, 2.85, 1.76, 1.63, 0.34, holdSeconds, 0.46);
   }
 
   public triggerSpankCloseUp(

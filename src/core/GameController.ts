@@ -2573,14 +2573,21 @@ export class GameController {
     this.sound.playClick();
     this.syncHUD();
 
-    const needsStandUp =
+    const chinuNeedsStandUp =
+      chinuAnim.getState() === 'FALL_BACK' || chinuAnim.getState() === 'DEAD';
+    if (chinuNeedsStandUp) {
+      this.physics.setKnockedDown('chinu', false);
+      chinuAnim.transitionTo('GET_UP', 0.08, true);
+    }
+
+    const priyanshuNeedsStandUp =
       priyanshuAnim.getState() === 'FALL_BACK' || priyanshuAnim.getState() === 'DEAD';
-    if (needsStandUp) {
+    if (priyanshuNeedsStandUp) {
       this.physics.setKnockedDown('priyanshu', false);
       priyanshuAnim.transitionTo('GET_UP', 0.08, true);
     }
 
-    const startDelay = needsStandUp ? 480 : 0;
+    const startDelay = chinuNeedsStandUp || priyanshuNeedsStandUp ? 520 : 0;
 
     this.scheduleUnscaled(() => {
       const chinuPos = this.physics.getBodyPosition('chinu')?.clone() ?? new THREE.Vector3(-1, 0, 0);
@@ -2595,7 +2602,8 @@ export class GameController {
         dirToChinu.normalize();
       }
 
-      const kissDist = 0.6;
+      // 0.37m closes the gap so their lips directly touch, with hands holding waist and neck naturally
+      const kissDist = 0.37;
       const kissSpotX = priyanshuPos.x + dirToChinu.x * kissDist;
       const kissSpotZ = priyanshuPos.z + dirToChinu.z * kissDist;
       const returnSpotX = priyanshuPos.x + dirToChinu.x * 2.05;
@@ -2603,40 +2611,52 @@ export class GameController {
 
       const kissCenter = new THREE.Vector3(
         (kissSpotX + priyanshuPos.x) * 0.5,
-        1.98,
+        1.63,
         (kissSpotZ + priyanshuPos.z) * 0.5
       );
 
-      this.cpuAi.onCpuInterrupted(performance.now(), 1800);
-      this.physics.setKinematicHold(true, 0.44);
-      chinuRig.modelRoot.rotation.y = Math.atan2(-dirToChinu.x, -dirToChinu.z);
-      priyanshuRig.modelRoot.rotation.y = Math.atan2(dirToChinu.x, dirToChinu.z);
+      const priyanshuYaw = Math.atan2(dirToChinu.x, dirToChinu.z);
+      const chinuYaw = Math.atan2(-dirToChinu.x, -dirToChinu.z);
+
+      this.cpuAi.onCpuInterrupted(performance.now(), 4500);
+      this.physics.setKinematicHold(true, 0.30);
+      this.physics.setLocomotionState('chinu', false, chinuYaw);
+      this.physics.setLocomotionState('priyanshu', false, priyanshuYaw);
+      chinuRig.modelRoot.rotation.y = chinuYaw;
+      priyanshuRig.modelRoot.rotation.y = priyanshuYaw;
+
       chinuAnim.transitionTo('RUN', 0.06);
-      this.sceneManager.triggerRomanticCloseUp(kissCenter, dirToChinu, 1.02);
+      this.sceneManager.triggerRomanticCloseUp(kissCenter, dirToChinu, 3.2);
 
       const glideState = { x: chinuPos.x, z: chinuPos.z };
       gsap.to(glideState, {
         x: kissSpotX,
         z: kissSpotZ,
-        duration: 0.34,
+        duration: 0.45,
         ease: 'power2.out',
         onUpdate: () => {
           this.physics.setBodyPositionXZ('chinu', glideState.x, glideState.z);
         },
         onComplete: () => {
-          chinuAnim.transitionTo('KISS', 0.1, true);
-          priyanshuAnim.transitionTo('BLUSH', 0.1, true);
+          this.physics.setBodyPositionXZ('chinu', kissSpotX, kissSpotZ);
+          chinuRig.modelRoot.rotation.y = chinuYaw;
+          priyanshuRig.modelRoot.rotation.y = priyanshuYaw;
 
+          // Start synchronized kiss animations simultaneously
+          chinuAnim.transitionTo('KISS', 0.12, true);
+          priyanshuAnim.transitionTo('BLUSH', 0.12, true);
+
+          // Peak kiss impact at 1850ms: Chinu on tiptoes, Priyanshu leaning down, lips meeting
           this.scheduleUnscaled(() => {
             const midpoint = chinuRig.root.position
               .clone()
               .lerp(priyanshuRig.root.position, 0.5)
-              .setY(2.0);
+              .setY(1.63);
 
             this.sound.playKissMwah();
             this.effects.spawnKissHealEffects(midpoint);
-            this.flashTintFeedback(priyanshuRig, 0xff5e99, 0.58, 0.9);
-            this.flashTintFeedback(chinuRig, 0xff87b2, 0.45, 0.65);
+            this.flashTintFeedback(priyanshuRig, 0xff5e99, 0.65, 1.2);
+            this.flashTintFeedback(chinuRig, 0xff87b2, 0.5, 0.9);
 
             this.setQuip(
               FIGHTER_META.priyanshu.displayName,
@@ -2644,26 +2664,29 @@ export class GameController {
             );
             this.quipIndex += 1;
             this.resetFighterHPState('priyanshu');
-          }, 230);
+          }, 1850);
 
+          // Embrace gently releases around 3200ms -> Chinu steps back to fighting stance
           this.scheduleUnscaled(() => {
             const stepBack = { x: kissSpotX, z: kissSpotZ };
             gsap.to(stepBack, {
               x: returnSpotX,
               z: returnSpotZ,
-              duration: 0.4,
+              duration: 0.55,
               ease: 'power2.inOut',
               onUpdate: () => {
                 this.physics.setBodyPositionXZ('chinu', stepBack.x, stepBack.z);
               },
               onComplete: () => {
+                this.physics.setLocomotionState('chinu', false, null);
+                this.physics.setLocomotionState('priyanshu', false, null);
                 this.physics.setKinematicHold(false);
                 this.isCinematicActive = false;
-                this.cpuAi.onCpuInterrupted(performance.now(), 1350);
+                this.cpuAi.onCpuInterrupted(performance.now(), 1200);
                 this.syncHUD();
               },
             });
-          }, 960);
+          }, 3200);
         },
       });
     }, startDelay);
