@@ -644,13 +644,16 @@ export function createHumanoidGLBClips(
     HIT,
     HIT_HEAD: HIT.clone(),
     HIT_STOMACH: HIT.clone(),
+    HIT_RIB: HIT.clone(),
     HIT_BIG: HIT.clone(),
     HIT_LEGS: HIT.clone(),
+    HIT_GROIN: HIT.clone(),
     HIT_CAR: HIT.clone(),
     BLOCK: HIT.clone(),
     ATTEMPT_ATTACK,
     FALL_BACK,
     DEAD: FALL_BACK.clone(),
+    CROUCH_DEATH: FALL_BACK.clone(),
     GET_UP,
   };
 }

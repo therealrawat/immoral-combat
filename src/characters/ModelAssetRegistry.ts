@@ -20,6 +20,8 @@ interface ConventionMoveRule {
   defaultSpeed: number;
   stripHorizontalRootMotion?: boolean;
   trimStartSec?: number;
+  hipsYOffset?: number;
+  holdDurationSec?: number;
 }
 
 const MODEL_GLOB_URLS = import.meta.glob<string>('../../models/**/*.glb', {
@@ -104,6 +106,15 @@ function buildModelAssetRegistry(): SplitModelRegistry {
         aliases.push(stripped);
         if (stripped === 'dead') aliases.push('death', 'ko');
       }
+      if (kebab === 'crouch-to-stand') {
+        aliases.push('crouch', 'crouching', 'crouch-pose', 'crouch-stand');
+      }
+      if (kebab === 'crouch-death') {
+        aliases.push('crouch-dead', 'crouch-ko');
+      }
+      if (kebab === 'jumping') {
+        aliases.push('jump', 'jump-up', 'jumping-up');
+      }
 
       for (const alias of aliases) {
         if (!sharedAnimations.has(alias)) {
@@ -165,6 +176,9 @@ function buildModelAssetRegistry(): SplitModelRegistry {
     ['hit', ['hit-to-body', 'stomach-hit', 'rib-hit', 'head-hit', 'big-hit-to-head']],
     ['block', ['body-block']],
     ['dead', ['dead-animation', 'dead', 'death', 'ko']],
+    ['jump', ['jumping', 'jump', 'crouch/jumping', 'flying-kick']],
+    ['crouch', ['crouch-to-stand', 'crouch', 'body-block']],
+    ['crouch-death', ['crouch-death', 'crouch-dead']],
     ['fall-back', ['stumble-backwards', 'stumble', 'dead-animation', 'dead']],
     ['fall', ['stumble-backwards', 'stumble', 'dead-animation', 'dead']],
     ['stumble', ['stumble-backwards', 'stumble']],
@@ -276,9 +290,10 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
   {
     state: 'KICK_LOW',
     clipSuffix: 'KickLow',
-    moveKeys: ['kick-to-the-groin', 'kicking'],
-    defaultSpeed: 2.2,
+    moveKeys: ['kicking', 'mma-kick', 'mma-kick-1'],
+    defaultSpeed: 2.35,
     stripHorizontalRootMotion: true,
+    hipsYOffset: -0.22,
   },
   {
     state: 'KICK_FLYING',
@@ -290,15 +305,24 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
   {
     state: 'JUMP',
     clipSuffix: 'Jump',
-    moveKeys: ['flying-kick', 'neutral-idle'],
-    defaultSpeed: 1.0,
+    moveKeys: ['jumping', 'jump', 'crouch/jumping', 'flying-kick', 'neutral-idle'],
+    defaultSpeed: 1.95,
     stripHorizontalRootMotion: true,
+    trimStartSec: 0.85,
   },
   {
     state: 'CROUCH',
     clipSuffix: 'Crouch',
-    moveKeys: ['body-block', 'neutral-idle'],
+    moveKeys: ['crouch-to-stand', 'crouch', 'body-block', 'neutral-idle'],
     defaultSpeed: 1.0,
+    stripHorizontalRootMotion: true,
+    holdDurationSec: 1.0,
+  },
+  {
+    state: 'CROUCH_DEATH',
+    clipSuffix: 'CrouchDeath',
+    moveKeys: ['crouch-death', 'dead-animation', 'stumble-backwards', 'dead'],
+    defaultSpeed: 1.15,
     stripHorizontalRootMotion: true,
   },
   {
@@ -389,6 +413,13 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     clipSuffix: 'HitLegs',
     moveKeys: ['hit-on-legs', 'stomach-hit'],
     defaultSpeed: 3.2,
+    stripHorizontalRootMotion: true,
+  },
+  {
+    state: 'HIT_GROIN',
+    clipSuffix: 'HitGroin',
+    moveKeys: ['kick-to-the-groin', 'hit-on-legs', 'stomach-hit', 'hit-to-body'],
+    defaultSpeed: 2.3,
     stripHorizontalRootMotion: true,
   },
   {
@@ -676,8 +707,8 @@ export function buildConventionNativeClipSpecs(id: CharacterId): NativeGLBClipSp
       repeatCount: custom.repeatCount,
       // Legacy baked idle clips have character-specific facing offsets; central shared clips don't
       yawOffsetRad: resolved.isSharedCentral ? undefined : custom.yawOffsetRad,
-      hipsYOffset: resolved.isSharedCentral ? undefined : custom.hipsYOffset,
-      holdDurationSec: custom.holdDurationSec,
+      hipsYOffset: custom.hipsYOffset ?? rule.hipsYOffset,
+      holdDurationSec: custom.holdDurationSec ?? rule.holdDurationSec,
       trimStartSec: custom.trimStartSec ?? rule.trimStartSec,
       stripHorizontalRootMotion: custom.stripHorizontalRootMotion ?? rule.stripHorizontalRootMotion,
     });

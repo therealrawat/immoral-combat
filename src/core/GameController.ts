@@ -362,14 +362,7 @@ export class GameController {
           this.physics.setMoveInput(this.selectedCharacter, 0, 0);
           return;
         }
-        if (z < -0.45) {
-          this.handleJumpAction();
-        } else if (z > 0.45) {
-          this.handleCrouchAction(true);
-        } else {
-          this.handleCrouchAction(false);
-        }
-        this.physics.setMoveInput(this.selectedCharacter, x, z * 0.35);
+        this.physics.setMoveInput(this.selectedCharacter, x, z);
       },
       onCanvasPointerDown: (clientX, clientY) => this.handleCanvasClick(clientX, clientY),
       onUserGesture: () => this.sound.unlock(),
@@ -544,8 +537,10 @@ export class GameController {
         finishedState === 'HIT' ||
         finishedState === 'HIT_HEAD' ||
         finishedState === 'HIT_STOMACH' ||
+        finishedState === 'HIT_RIB' ||
         finishedState === 'HIT_BIG' ||
         finishedState === 'HIT_LEGS' ||
+        finishedState === 'HIT_GROIN' ||
         finishedState === 'HIT_CAR' ||
         finishedState === 'BLOCK';
 
@@ -950,7 +945,13 @@ export class GameController {
       onPlayKO: () => {
         const anim = this.anims.get(id);
         const oppId = this.getFighterForSlot(slot === 'player1' ? 'player2' : 'player1');
-        const koState: FighterState = anim?.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
+        const isCrouch = this.physics.isCrouching(id);
+        const koState: FighterState =
+          isCrouch && anim?.hasState('CROUCH_DEATH')
+            ? 'CROUCH_DEATH'
+            : anim?.hasState('DEAD')
+            ? 'DEAD'
+            : 'FALL_BACK';
         if (anim) {
           this.physics.setKnockedDown(id, true);
           this.physics.setMoveInput(id, 0, 0);
@@ -967,7 +968,13 @@ export class GameController {
       onPlayFall: () => {
         const anim = this.anims.get(id);
         const oppId = this.getFighterForSlot(slot === 'player1' ? 'player2' : 'player1');
-        const fallState: FighterState = anim?.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
+        const isCrouch = this.physics.isCrouching(id);
+        const fallState: FighterState =
+          isCrouch && anim?.hasState('CROUCH_DEATH')
+            ? 'CROUCH_DEATH'
+            : anim?.hasState('DEAD')
+            ? 'DEAD'
+            : 'FALL_BACK';
         if (anim && anim.getState() !== fallState) {
           this.physics.setKnockedDown(id, true);
           this.physics.setMoveInput(id, 0, 0);
@@ -1306,12 +1313,12 @@ export class GameController {
   ): CombatAttackType {
     const isJumping = this.physics.isJumping(attackerId);
     const isCrouching = this.physics.isCrouching(attackerId);
+    const input = this.physics.getMoveInput(attackerId);
 
     if (baseKind === 'kick') {
       if (isJumping) return 'kick_flying';
       if (isCrouching) return 'kick_low';
 
-      const input = this.physics.getMoveInput(attackerId);
       const actorPos = this.physics.getBodyPosition(attackerId);
       const defenderPos = this.physics.getBodyPosition(defenderId);
 
@@ -1325,7 +1332,6 @@ export class GameController {
       if (isJumping) return 'punch_hook';
       if (isCrouching) return 'punch_elbow';
 
-      const input = this.physics.getMoveInput(attackerId);
       const actorPos = this.physics.getBodyPosition(attackerId);
       const defenderPos = this.physics.getBodyPosition(defenderId);
 
@@ -1479,6 +1485,15 @@ export class GameController {
     this.triggerOpponentStrikeBack(this.opponentCharacter, this.selectedCharacter);
   }
 
+  private isFighterDownOrDead(state?: FighterState): boolean {
+    return (
+      state === 'FALL_BACK' ||
+      state === 'DEAD' ||
+      state === 'CROUCH_DEATH' ||
+      state === 'GET_UP'
+    );
+  }
+
   private handleBlockAction(isPressed: boolean): void {
     if (this.isCinematicActive || this.gameManager.isControlsLocked()) return;
     const player = this.selectedCharacter;
@@ -1486,7 +1501,7 @@ export class GameController {
     if (!anim) return;
 
     const state = anim.getState();
-    if (state === 'FALL_BACK' || state === 'DEAD' || state === 'GET_UP') return;
+    if (this.isFighterDownOrDead(state)) return;
 
     if (isPressed) {
       this.blockingFighters.add(player);
@@ -1603,13 +1618,15 @@ export class GameController {
       comboNote: number;
       shakeIntensity: number;
       shakeDuration: number;
-      hitType?: 'head' | 'stomach' | 'rib' | 'body' | 'big' | 'legs' | 'car';
+      hitType?: 'head' | 'stomach' | 'rib' | 'body' | 'big' | 'legs' | 'groin' | 'car';
     }
   ): void {
     this.physics.setLocomotionState(defenderId, false, null);
     const targetHitState: FighterState =
       opts.hitType === 'car'
         ? 'HIT_CAR'
+        : opts.hitType === 'groin'
+        ? 'HIT_GROIN'
         : opts.hitType === 'head'
         ? 'HIT_HEAD'
         : opts.hitType === 'stomach'
@@ -1679,7 +1696,7 @@ export class GameController {
     if (!attackerAnim || !defenderAnim || !defenderRig) return;
 
     const defenderState = defenderAnim.getState();
-    if (defenderState === 'FALL_BACK' || defenderState === 'DEAD' || defenderState === 'GET_UP') {
+    if (this.isFighterDownOrDead(defenderState)) {
       return;
     }
 
@@ -1751,7 +1768,7 @@ export class GameController {
       if (this.isCinematicActive || this.disposed || this.gameManager.isControlsLocked()) return;
 
       const currentState = defenderAnim.getState();
-      if (currentState === 'FALL_BACK' || currentState === 'DEAD' || currentState === 'GET_UP') return;
+      if (this.isFighterDownOrDead(currentState)) return;
 
       const hit = this.physics.resolveStrike(attackerId, defenderId, move, damage);
       if (!hit) {
@@ -1775,7 +1792,7 @@ export class GameController {
         return;
       }
 
-      let hitType: 'head' | 'stomach' | 'rib' | 'body' | 'big' | 'legs' | 'car' = 'head';
+      let hitType: 'head' | 'stomach' | 'rib' | 'body' | 'big' | 'legs' | 'groin' | 'car' = 'head';
       let label: string | undefined = undefined;
 
       if (move === 'kick_flying') {
@@ -1788,8 +1805,8 @@ export class GameController {
         hitType = 'stomach';
         label = 'SPIN KICK!';
       } else if (move === 'kick_low') {
-        hitType = 'legs';
-        label = 'LOW KICK!';
+        hitType = 'groin';
+        label = 'GROIN KICK!';
       } else if (isKick) {
         hitType = 'stomach';
         label = 'SMACK!';
@@ -1840,7 +1857,7 @@ export class GameController {
     if (!attackerAnim || !defenderAnim || !defenderRig) return;
 
     const defenderState = defenderAnim.getState();
-    if (defenderState === 'FALL_BACK' || defenderState === 'DEAD' || defenderState === 'GET_UP') return;
+    if (this.isFighterDownOrDead(defenderState)) return;
 
     const attackType = this.resolveCombatAttackType(attackerId, defenderId, move);
     const isKick = attackType.startsWith('kick');
@@ -1889,7 +1906,7 @@ export class GameController {
       }
 
       const currentState = defenderAnim.getState();
-      if (currentState === 'FALL_BACK' || currentState === 'DEAD' || currentState === 'GET_UP') return;
+      if (this.isFighterDownOrDead(currentState)) return;
 
       const hit = this.physics.resolveStrike(attackerId, defenderId, attackType, damage);
       if (!hit) return;
@@ -1919,7 +1936,7 @@ export class GameController {
         return;
       }
 
-      let hitType: 'head' | 'stomach' | 'rib' | 'body' | 'big' | 'legs' | 'car' = 'head';
+      let hitType: 'head' | 'stomach' | 'rib' | 'body' | 'big' | 'legs' | 'groin' | 'car' = 'head';
       let label: string | undefined = undefined;
 
       if (attackType === 'kick_flying') {
@@ -1932,8 +1949,8 @@ export class GameController {
         hitType = 'stomach';
         label = 'SPIN KICK!';
       } else if (attackType === 'kick_low') {
-        hitType = 'legs';
-        label = 'LOW KICK!';
+        hitType = 'groin';
+        label = 'GROIN KICK!';
       } else if (isKick) {
         hitType = 'stomach';
         label = 'POW!';
@@ -2387,7 +2404,7 @@ export class GameController {
     if (!attackerAnim || !defenderAnim || !defenderRig) return;
 
     const defenderState = defenderAnim.getState();
-    if (defenderState === 'FALL_BACK' || defenderState === 'DEAD' || defenderState === 'GET_UP') return;
+    if (this.isFighterDownOrDead(defenderState)) return;
 
     this.sound.playCounterWindup();
     attackerAnim.transitionTo('KICK', 0.05, true);
@@ -2544,7 +2561,14 @@ export class GameController {
         this.gameTimeScale = 1;
         this.physics.setKnockedDown(challengerId, true);
         const isDeadlyStrike = (this.fighterHp.get(challengerId) ?? 0) <= 0;
-        const fallState = isDeadlyStrike && challengerAnim.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
+        const isCrouch = this.physics.isCrouching(challengerId);
+        const fallState = isDeadlyStrike
+          ? isCrouch && challengerAnim.hasState('CROUCH_DEATH')
+            ? 'CROUCH_DEATH'
+            : challengerAnim.hasState('DEAD')
+            ? 'DEAD'
+            : 'FALL_BACK'
+          : 'FALL_BACK';
         challengerAnim.transitionTo(fallState, 0.04, true);
         this.physics.applyDirectionalImpulse(challengerId, bossId, -7.6);
         this.effects.spawnDizzyStars(challengerRig.headAnchor, 1.55);
@@ -2606,14 +2630,18 @@ export class GameController {
     this.syncHUD();
 
     const chinuNeedsStandUp =
-      chinuAnim.getState() === 'FALL_BACK' || chinuAnim.getState() === 'DEAD';
+      chinuAnim.getState() === 'FALL_BACK' ||
+      chinuAnim.getState() === 'DEAD' ||
+      chinuAnim.getState() === 'CROUCH_DEATH';
     if (chinuNeedsStandUp) {
       this.physics.setKnockedDown('chinu', false);
       chinuAnim.transitionTo('GET_UP', 0.08, true);
     }
 
     const priyanshuNeedsStandUp =
-      priyanshuAnim.getState() === 'FALL_BACK' || priyanshuAnim.getState() === 'DEAD';
+      priyanshuAnim.getState() === 'FALL_BACK' ||
+      priyanshuAnim.getState() === 'DEAD' ||
+      priyanshuAnim.getState() === 'CROUCH_DEATH';
     if (priyanshuNeedsStandUp) {
       this.physics.setKnockedDown('priyanshu', false);
       priyanshuAnim.transitionTo('GET_UP', 0.08, true);
@@ -2749,7 +2777,12 @@ export class GameController {
         this.effects.spawnBossFlexSparkle(rig.root.position.clone().setY(1.5));
         this.flashTintFeedback(rig, 0x34d399, 0.45, 0.7);
       }
-      if (anim && (anim.getState() === 'FALL_BACK' || anim.getState() === 'DEAD')) {
+      if (
+        anim &&
+        (anim.getState() === 'FALL_BACK' ||
+          anim.getState() === 'DEAD' ||
+          anim.getState() === 'CROUCH_DEATH')
+      ) {
         this.physics.setKnockedDown(id, false);
         anim.transitionTo('GET_UP', 0.08, true);
       }

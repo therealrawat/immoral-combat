@@ -241,6 +241,7 @@ export class UIManager {
   private readonly touchBtnKick = document.getElementById('touch-btn-kick');
   private readonly touchBtnJump =
     document.getElementById('touch-btn-jump') ?? document.getElementById('touch-btn-combo');
+  private readonly touchBtnCrouch = document.getElementById('touch-btn-crouch');
   private readonly touchBtnCounter = document.getElementById('touch-btn-counter');
   private readonly touchBtnBlock = document.getElementById('touch-btn-block');
   private readonly touchBtnSignature = document.getElementById('touch-btn-signature');
@@ -621,6 +622,7 @@ export class UIManager {
     bindTouchButton(this.touchBtnKick, () => this.handlers.onKickAction());
     bindHoldTouchButton(this.touchBtnBlock, (active) => this.handlers.onBlockAction?.(active));
     bindTouchButton(this.touchBtnJump, () => this.handlers.onJumpAction?.());
+    bindHoldTouchButton(this.touchBtnCrouch, (active) => this.handlers.onCrouchAction?.(active));
     bindTouchButton(this.touchBtnCounter, () => this.handlers.onCounterAction());
     bindTouchButton(this.touchBtnSignature, () => this.handlers.onSignatureAction());
     bindTouchButton(this.touchBtnSpecial, () => this.handlers.onSecondarySignatureAction?.());
@@ -1283,16 +1285,21 @@ export class UIManager {
       return;
     }
 
+    if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+      event.preventDefault();
+      this.handlers.onCrouchAction?.(true);
+      return;
+    }
+
     const keyActionMap: Record<string, () => void> = {
-      Space: () => this.handlers.onPrimaryAction(),
+      Space: () => this.handlers.onJumpAction?.(),
+      KeyP: () => this.handlers.onPrimaryAction(),
       KeyJ: () => this.handlers.onPrimaryAction(),
       KeyK: () => this.handlers.onKickAction(),
-      KeyW: () => this.handlers.onJumpAction?.(),
-      ArrowUp: () => this.handlers.onJumpAction?.(),
       KeyF: () => this.handlers.onSignatureAction(),
       KeyG: () => this.handlers.onSecondarySignatureAction?.(),
       KeyC: () => this.handlers.onCounterAction(),
-      KeyP: () => this.handlers.onBossPoseAction(),
+      KeyT: () => this.handlers.onBossPoseAction(),
       KeyL: () => this.handlers.onLoungePoseAction(),
       KeyV: () => this.handlers.onChampPoseAction(),
       KeyE: () => this.handlers.onRingEntryAction(),
@@ -1314,6 +1321,10 @@ export class UIManager {
       this.handlers.onBlockAction?.(false);
       return;
     }
+    if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+      this.handlers.onCrouchAction?.(false);
+      return;
+    }
     if (this.isMovementCode(event.code)) {
       this.pressedKeys.delete(event.code);
       this.emitMovementVector();
@@ -1324,6 +1335,7 @@ export class UIManager {
     this.pressedKeys.clear();
     this.resetTouchJoystick();
     this.handlers.onBlockAction?.(false);
+    this.handlers.onCrouchAction?.(false);
   };
 
   private isMovementCode(code: string): boolean {

@@ -1868,6 +1868,12 @@ body,
   box-shadow: 0 0 14px rgba(14, 165, 233, 0.45);
 }
 
+.touch-btn--crouch {
+  background: linear-gradient(155deg, #64748b, #334155);
+  border-color: rgba(203, 213, 225, 0.65);
+  box-shadow: 0 0 14px rgba(100, 116, 139, 0.45);
+}
+
 .touch-btn--combo {
   background: linear-gradient(155deg, #0ea5e9, #0369a1);
   border-color: rgba(186, 230, 253, 0.65);

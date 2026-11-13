@@ -12,6 +12,7 @@ const ONE_SHOT_STATES = new Set<FighterState>([
   'KICK_BACK',
   'KICK_LOW',
   'KICK_FLYING',
+  'JUMP',
   'SIGNATURE',
   'MUAY_THAI',
   'POSE',
@@ -29,11 +30,13 @@ const ONE_SHOT_STATES = new Set<FighterState>([
   'HIT_RIB',
   'HIT_BIG',
   'HIT_LEGS',
+  'HIT_GROIN',
   'HIT_CAR',
   'BLOCK',
   'ATTEMPT_ATTACK',
   'FALL_BACK',
   'DEAD',
+  'CROUCH_DEATH',
   'GET_UP',
   'LIFTING',
   'STABBING',
@@ -204,6 +207,7 @@ export class AnimationController {
         resolvedState === 'HIT_RIB' ||
         resolvedState === 'HIT_BIG' ||
         resolvedState === 'HIT_LEGS' ||
+        resolvedState === 'HIT_GROIN' ||
         resolvedState === 'HIT_CAR')
     ) {
       resolvedState = 'HIT';
@@ -238,6 +242,17 @@ export class AnimationController {
       if (!nextAction) {
         resolvedState = 'HIT';
         nextAction = this.actions.get(resolvedState);
+      }
+    } else if (!nextAction && resolvedState === 'CROUCH_DEATH') {
+      resolvedState = 'DEAD';
+      nextAction = this.actions.get(resolvedState);
+      if (!nextAction) {
+        resolvedState = 'FALL_BACK';
+        nextAction = this.actions.get(resolvedState);
+        if (!nextAction) {
+          resolvedState = 'HIT';
+          nextAction = this.actions.get(resolvedState);
+        }
       }
     } else if (!nextAction && resolvedState === 'GET_UP') {
       resolvedState = 'IDLE';
@@ -354,6 +369,7 @@ export class AnimationController {
       toState === 'HIT_RIB' ||
       toState === 'HIT_BIG' ||
       toState === 'HIT_LEGS' ||
+      toState === 'HIT_GROIN' ||
       toState === 'HIT_CAR' ||
       toState === 'BLOCK'
     ) {
@@ -382,7 +398,12 @@ export class AnimationController {
     }
 
     // Knockdowns & death falls
-    if (toState === 'FALL_BACK' || toState === 'DEAD' || toState === 'SPANKED') {
+    if (
+      toState === 'FALL_BACK' ||
+      toState === 'DEAD' ||
+      toState === 'CROUCH_DEATH' ||
+      toState === 'SPANKED'
+    ) {
       return 0.18;
     }
 
