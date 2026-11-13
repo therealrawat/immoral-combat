@@ -20,6 +20,7 @@ import {
   FighterRig,
   FighterState,
   SelectIdleVariant,
+  CombatAttackType,
 } from '../types/game';
 import {
   CINEMATIC_FREEZE_TIME_SCALE,
@@ -179,67 +180,6 @@ const PRIYANSHU_KISS_QUIPS = [
   'o yeah mommy 💕',
 ] as const;
 
-const MUAY_THAI_TIMINGS: Record<
-  CharacterId,
-  {
-    hit1DelayMs: number;
-    hit1Damage: number;
-    hit2DelayMs: number;
-    hit2Damage: number;
-    finisherDelayMs: number;
-    finisherDamage: number;
-  }
-> = {
-  chinu: {
-    hit1DelayMs: 650,
-    hit1Damage: 12,
-    hit2DelayMs: 1450,
-    hit2Damage: 14,
-    finisherDelayMs: 2350,
-    finisherDamage: 22,
-  },
-  modiji: {
-    hit1DelayMs: 650,
-    hit1Damage: 12,
-    hit2DelayMs: 1380,
-    hit2Damage: 15,
-    finisherDelayMs: 2550,
-    finisherDamage: 24,
-  },
-  trump: {
-    hit1DelayMs: 650,
-    hit1Damage: 12,
-    hit2DelayMs: 1380,
-    hit2Damage: 15,
-    finisherDelayMs: 2550,
-    finisherDamage: 24,
-  },
-  putin: {
-    hit1DelayMs: 650,
-    hit1Damage: 12,
-    hit2DelayMs: 1380,
-    hit2Damage: 15,
-    finisherDelayMs: 2550,
-    finisherDamage: 24,
-  },
-  priyanshu: {
-    hit1DelayMs: 820,
-    hit1Damage: 14,
-    hit2DelayMs: 1600,
-    hit2Damage: 16,
-    finisherDelayMs: 2550,
-    finisherDamage: 24,
-  },
-  amitabh: {
-    hit1DelayMs: 650,
-    hit1Damage: 14,
-    hit2DelayMs: 1380,
-    hit2Damage: 16,
-    finisherDelayMs: 2550,
-    finisherDamage: 26,
-  },
-};
-
 function resolveQuipText(entry: string | (() => string)): string {
   return typeof entry === 'function' ? entry() : entry;
 }
@@ -369,11 +309,12 @@ export class GameController {
     this.ui = new UIManager(canvas, {
       onPrimaryAction: () => this.handlePrimaryAction(),
       onKickAction: () => this.handleKickAction(),
+      onJumpAction: () => this.handleJumpAction(),
+      onCrouchAction: (crouching) => this.handleCrouchAction(crouching),
       onBlockAction: (isBlocking) => this.handleBlockAction(isBlocking),
       onSignatureAction: () => this.handleSignatureAction(),
       onSecondarySignatureAction: () => this.handleSecondarySignatureAction(),
       onCounterAction: () => this.handleCounterAction(),
-      onMuayThaiAction: () => this.triggerMuayThaiAction(),
       onBossPoseAction: () => this.triggerPoseAction(),
       onLoungePoseAction: () => this.triggerSecondaryPoseAction(),
       onChampPoseAction: () => this.triggerChinuChampPoseAction(),
@@ -421,7 +362,14 @@ export class GameController {
           this.physics.setMoveInput(this.selectedCharacter, 0, 0);
           return;
         }
-        this.physics.setMoveInput(this.selectedCharacter, x, z);
+        if (z < -0.45) {
+          this.handleJumpAction();
+        } else if (z > 0.45) {
+          this.handleCrouchAction(true);
+        } else {
+          this.handleCrouchAction(false);
+        }
+        this.physics.setMoveInput(this.selectedCharacter, x, z * 0.35);
       },
       onCanvasPointerDown: (clientX, clientY) => this.handleCanvasClick(clientX, clientY),
       onUserGesture: () => this.sound.unlock(),
@@ -621,10 +569,10 @@ export class GameController {
         this.resetPriyanshuAdmire();
       }
       if (
-        finishedState === 'PUNCH' ||
-        finishedState === 'KICK' ||
+        finishedState.startsWith('PUNCH') ||
+        finishedState.startsWith('KICK') ||
+        finishedState === 'JUMP' ||
         finishedState === 'SIGNATURE' ||
-        finishedState === 'MUAY_THAI' ||
         finishedState === 'POSE' ||
         finishedState === 'LOUNGE' ||
         finishedState === 'DANCE' ||
@@ -640,6 +588,8 @@ export class GameController {
       ) {
         if (this.blockingFighters.has(rig.id)) {
           anim.transitionTo('BLOCK', 0.14);
+        } else if (this.physics.isCrouching(rig.id)) {
+          anim.transitionTo('CROUCH', 0.14);
         } else {
           anim.transitionTo('IDLE', 0.22);
         }
@@ -1135,20 +1085,39 @@ export class GameController {
       if (!anim) continue;
 
       const currentState = anim.getState();
+      const isJumping = this.physics.isJumping(id);
+      const isCrouching = this.physics.isCrouching(id);
+
+      // Recover to IDLE / CROUCH when landing from vertical jump
+      if (!isJumping && currentState === 'JUMP') {
+        anim.transitionTo(isCrouching ? 'CROUCH' : 'IDLE', 0.16);
+      }
+
+      if (isCrouching && !isJumping && (currentState === 'IDLE' || currentState === 'RUN')) {
+        this.physics.setLocomotionState(id, false, null);
+        anim.transitionTo('CROUCH', 0.14);
+        continue;
+      } else if (!isCrouching && currentState === 'CROUCH') {
+        anim.transitionTo('IDLE', 0.16);
+      }
+
       const moveInput = this.physics.getMoveInput(id);
       const isMoving = Boolean(
         !this.isCinematicActive &&
         !this.gameManager.isControlsLocked() &&
         !this.physics.isKnockedDown(id) &&
         !this.physics.isMovementPaused(id) &&
+        !isCrouching &&
         moveInput &&
         moveInput.lengthSq() > 0.001
       );
       const canStartRun =
-        currentState === 'IDLE' ||
-        currentState === 'RUN' ||
-        (id === this.selectedCharacter &&
-          (currentState === 'ADMIRE' || currentState === 'ENTRY'));
+        !isCrouching &&
+        !isJumping &&
+        (currentState === 'IDLE' ||
+          currentState === 'RUN' ||
+          (id === this.selectedCharacter &&
+            (currentState === 'ADMIRE' || currentState === 'ENTRY')));
 
       if (isMoving && moveInput && anim.hasState('RUN') && canStartRun) {
         if (id === 'chinu' && currentState === 'ENTRY') {
@@ -1294,10 +1263,78 @@ export class GameController {
       if (this.opponentCharacter === 'chinu') {
         this.triggerAction2Counter(this.selectedCharacter, 'chinu');
       } else {
-        this.triggerStandardAttack(this.selectedCharacter, this.opponentCharacter, 'punch', hit.point);
+        const attackType = this.resolveCombatAttackType(
+          this.selectedCharacter,
+          this.opponentCharacter,
+          'punch'
+        );
+        this.triggerStandardAttack(this.selectedCharacter, this.opponentCharacter, attackType, hit.point);
       }
     } else if (hit.rig.id === this.selectedCharacter) {
       this.triggerPoseAction(hit.point);
+    }
+  }
+
+  private handleJumpAction(): void {
+    if (this.gameManager.isControlsLocked() || this.isCinematicActive) return;
+    const jumped = this.physics.triggerJump(this.selectedCharacter);
+    if (jumped) {
+      const anim = this.anims.get(this.selectedCharacter);
+      anim?.transitionTo('JUMP', 0.12, true);
+    }
+  }
+
+  private handleCrouchAction(crouching: boolean): void {
+    if (this.gameManager.isControlsLocked() || this.isCinematicActive) return;
+    const wasCrouching = this.physics.isCrouching(this.selectedCharacter);
+    this.physics.setCrouching(this.selectedCharacter, crouching);
+    if (crouching && !wasCrouching) {
+      const anim = this.anims.get(this.selectedCharacter);
+      anim?.transitionTo('CROUCH', 0.14, false);
+    } else if (!crouching && wasCrouching) {
+      const anim = this.anims.get(this.selectedCharacter);
+      if (anim?.getState() === 'CROUCH') {
+        anim.transitionTo('IDLE', 0.16);
+      }
+    }
+  }
+
+  private resolveCombatAttackType(
+    attackerId: CharacterId,
+    defenderId: CharacterId,
+    baseKind: 'punch' | 'kick'
+  ): CombatAttackType {
+    const isJumping = this.physics.isJumping(attackerId);
+    const isCrouching = this.physics.isCrouching(attackerId);
+
+    if (baseKind === 'kick') {
+      if (isJumping) return 'kick_flying';
+      if (isCrouching) return 'kick_low';
+
+      const input = this.physics.getMoveInput(attackerId);
+      const actorPos = this.physics.getBodyPosition(attackerId);
+      const defenderPos = this.physics.getBodyPosition(defenderId);
+
+      if (input && actorPos && defenderPos && Math.abs(input.x) > 0.25) {
+        const toOpponentX = Math.sign(defenderPos.x - actorPos.x);
+        const isForward = Math.sign(input.x) === toOpponentX;
+        return isForward ? 'kick_mma' : 'kick_back';
+      }
+      return 'kick';
+    } else {
+      if (isJumping) return 'punch_hook';
+      if (isCrouching) return 'punch_elbow';
+
+      const input = this.physics.getMoveInput(attackerId);
+      const actorPos = this.physics.getBodyPosition(attackerId);
+      const defenderPos = this.physics.getBodyPosition(defenderId);
+
+      if (input && actorPos && defenderPos && Math.abs(input.x) > 0.25) {
+        const toOpponentX = Math.sign(defenderPos.x - actorPos.x);
+        const isForward = Math.sign(input.x) === toOpponentX;
+        return isForward ? 'punch_hook' : 'punch_combo';
+      }
+      return 'punch';
     }
   }
 
@@ -1307,7 +1344,12 @@ export class GameController {
       this.triggerAction2Counter(this.selectedCharacter, 'chinu');
       return;
     }
-    this.triggerStandardAttack(this.selectedCharacter, this.opponentCharacter, 'punch');
+    const attackType = this.resolveCombatAttackType(
+      this.selectedCharacter,
+      this.opponentCharacter,
+      'punch'
+    );
+    this.triggerStandardAttack(this.selectedCharacter, this.opponentCharacter, attackType);
   }
 
   private handleKickAction(): void {
@@ -1316,7 +1358,12 @@ export class GameController {
       this.triggerAction2Counter(this.selectedCharacter, 'chinu');
       return;
     }
-    this.triggerStandardAttack(this.selectedCharacter, this.opponentCharacter, 'kick');
+    const attackType = this.resolveCombatAttackType(
+      this.selectedCharacter,
+      this.opponentCharacter,
+      'kick'
+    );
+    this.triggerStandardAttack(this.selectedCharacter, this.opponentCharacter, attackType);
   }
 
   private handleSignatureAction(): void {
@@ -1556,7 +1603,7 @@ export class GameController {
       comboNote: number;
       shakeIntensity: number;
       shakeDuration: number;
-      hitType?: 'head' | 'stomach' | 'body' | 'big' | 'legs' | 'car';
+      hitType?: 'head' | 'stomach' | 'rib' | 'body' | 'big' | 'legs' | 'car';
     }
   ): void {
     this.physics.setLocomotionState(defenderId, false, null);
@@ -1567,6 +1614,8 @@ export class GameController {
         ? 'HIT_HEAD'
         : opts.hitType === 'stomach'
         ? 'HIT_STOMACH'
+        : opts.hitType === 'rib'
+        ? 'HIT_RIB'
         : opts.hitType === 'big'
         ? 'HIT_BIG'
         : opts.hitType === 'legs'
@@ -1610,12 +1659,12 @@ export class GameController {
   }
 
   /**
-   * Standard Punch or Kick attack from attacker to non-boss defender.
+   * Standard or Directional Punch/Kick attack from attacker to non-boss defender.
    */
   public triggerStandardAttack(
     attackerId: CharacterId,
     defenderId: CharacterId,
-    move: 'punch' | 'kick',
+    move: CombatAttackType | 'punch' | 'kick',
     clickedPoint?: THREE.Vector3
   ): void {
     if (this.isCinematicActive || this.gameManager.isControlsLocked()) return;
@@ -1634,8 +1683,54 @@ export class GameController {
       return;
     }
 
-    const isKick = move === 'kick';
-    const damage = isKick ? DIRECT_KICK_DAMAGE : PUNCH_DAMAGE;
+    const isKick = move.startsWith('kick');
+    const attackAnimState: FighterState =
+      move === 'punch_hook'
+        ? 'PUNCH_HOOK'
+        : move === 'punch_elbow'
+        ? 'PUNCH_ELBOW'
+        : move === 'punch_combo'
+        ? 'PUNCH_COMBO'
+        : move === 'kick_mma'
+        ? 'KICK_MMA'
+        : move === 'kick_back'
+        ? 'KICK_BACK'
+        : move === 'kick_low'
+        ? 'KICK_LOW'
+        : move === 'kick_flying'
+        ? 'KICK_FLYING'
+        : isKick
+        ? 'KICK'
+        : 'PUNCH';
+
+    let damage = PUNCH_DAMAGE;
+    if (move === 'kick_flying') damage = 26;
+    else if (move === 'kick_mma') damage = 24;
+    else if (move === 'kick_back') damage = 22;
+    else if (move === 'kick_low') damage = 18;
+    else if (isKick) damage = DIRECT_KICK_DAMAGE;
+    else if (move === 'punch_hook') damage = 18;
+    else if (move === 'punch_combo') damage = 22;
+    else if (move === 'punch_elbow') damage = 19;
+
+    const forwardImpulse =
+      move === 'kick_flying'
+        ? 3.6
+        : move === 'kick_mma'
+        ? 3.1
+        : move === 'kick_back'
+        ? 2.6
+        : move === 'kick_low'
+        ? 2.2
+        : isKick
+        ? 2.9
+        : move === 'punch_hook'
+        ? 2.7
+        : move === 'punch_combo'
+        ? 2.3
+        : move === 'punch_elbow'
+        ? 2.5
+        : 2.4;
 
     this.cancelChinuEntry();
     if (attackerId === 'chinu') {
@@ -1647,8 +1742,8 @@ export class GameController {
     this.physics.setMoveInput(attackerId, 0, 0);
     this.physics.setLocomotionState(attackerId, false, null);
     this.sound.playWhoosh(isKick ? 0.85 : 1.05);
-    attackerAnim.transitionTo(isKick ? 'KICK' : 'PUNCH', 0.05, true);
-    this.physics.applyDirectionalImpulse(attackerId, defenderId, isKick ? 2.9 : 2.4);
+    attackerAnim.transitionTo(attackAnimState, 0.05, true);
+    this.physics.applyDirectionalImpulse(attackerId, defenderId, forwardImpulse);
 
     const impactDelayMs = this.getStrikeImpactDelayMs(attackerId, isKick);
 
@@ -1680,14 +1775,45 @@ export class GameController {
         return;
       }
 
+      let hitType: 'head' | 'stomach' | 'rib' | 'body' | 'big' | 'legs' | 'car' = 'head';
+      let label: string | undefined = undefined;
+
+      if (move === 'kick_flying') {
+        hitType = 'big';
+        label = 'FLYING KICK!';
+      } else if (move === 'kick_mma') {
+        hitType = 'big';
+        label = 'ROUNDHOUSE!';
+      } else if (move === 'kick_back') {
+        hitType = 'stomach';
+        label = 'SPIN KICK!';
+      } else if (move === 'kick_low') {
+        hitType = 'legs';
+        label = 'LOW KICK!';
+      } else if (isKick) {
+        hitType = 'stomach';
+        label = 'SMACK!';
+      } else if (move === 'punch_hook') {
+        hitType = 'head';
+        label = 'HOOK!';
+      } else if (move === 'punch_combo') {
+        hitType = 'big';
+        label = 'FLURRY!';
+      } else if (move === 'punch_elbow') {
+        hitType = 'rib';
+        label = 'ELBOW!';
+      } else {
+        hitType = 'head';
+      }
+
       this.applyNonBossStrikeHit(defenderId, attackerId, defenderRig, defenderAnim, impactPoint, damage, {
         knockback: isKick ? -6.6 : -4.4,
         jitter: isKick ? 1.8 : 1.4,
-        label: isKick ? 'SMACK!' : undefined,
+        label,
         comboNote: this.comboHits + (isKick ? 3 : 1),
-        shakeIntensity: isKick ? 0.2 : 0.14,
-        shakeDuration: isKick ? 0.26 : 0.2,
-        hitType: isKick ? 'stomach' : 'head',
+        shakeIntensity: isKick ? 0.22 : 0.15,
+        shakeDuration: isKick ? 0.28 : 0.2,
+        hitType,
       });
 
       this.recordHitQuip(defenderId);
@@ -1716,7 +1842,27 @@ export class GameController {
     const defenderState = defenderAnim.getState();
     if (defenderState === 'FALL_BACK' || defenderState === 'DEAD' || defenderState === 'GET_UP') return;
 
-    const isKick = move === 'kick';
+    const attackType = this.resolveCombatAttackType(attackerId, defenderId, move);
+    const isKick = attackType.startsWith('kick');
+    const attackAnimState: FighterState =
+      attackType === 'punch_hook'
+        ? 'PUNCH_HOOK'
+        : attackType === 'punch_elbow'
+        ? 'PUNCH_ELBOW'
+        : attackType === 'punch_combo'
+        ? 'PUNCH_COMBO'
+        : attackType === 'kick_mma'
+        ? 'KICK_MMA'
+        : attackType === 'kick_back'
+        ? 'KICK_BACK'
+        : attackType === 'kick_low'
+        ? 'KICK_LOW'
+        : attackType === 'kick_flying'
+        ? 'KICK_FLYING'
+        : isKick
+        ? 'KICK'
+        : 'PUNCH';
+
     const baseDamage = isKick ? CPU_KICK_DAMAGE : CPU_PUNCH_DAMAGE;
     const damage = Math.max(
       4,
@@ -1726,7 +1872,7 @@ export class GameController {
     this.physics.setMoveInput(attackerId, 0, 0);
     this.physics.setLocomotionState(attackerId, false, null);
     this.sound.playWhoosh(isKick ? 0.9 : 1.08);
-    attackerAnim.transitionTo(isKick ? 'KICK' : 'PUNCH', 0.06, true);
+    attackerAnim.transitionTo(attackAnimState, 0.06, true);
     this.physics.applyDirectionalImpulse(attackerId, defenderId, isKick ? 2.5 : 2.1);
 
     const impactDelayMs = this.getStrikeImpactDelayMs(attackerId, isKick);
@@ -1745,7 +1891,7 @@ export class GameController {
       const currentState = defenderAnim.getState();
       if (currentState === 'FALL_BACK' || currentState === 'DEAD' || currentState === 'GET_UP') return;
 
-      const hit = this.physics.resolveStrike(attackerId, defenderId, move, damage);
+      const hit = this.physics.resolveStrike(attackerId, defenderId, attackType, damage);
       if (!hit) return;
 
       if (FIGHTER_META[defenderId].isBossInfinite) {
@@ -1773,14 +1919,45 @@ export class GameController {
         return;
       }
 
+      let hitType: 'head' | 'stomach' | 'rib' | 'body' | 'big' | 'legs' | 'car' = 'head';
+      let label: string | undefined = undefined;
+
+      if (attackType === 'kick_flying') {
+        hitType = 'big';
+        label = 'FLYING KICK!';
+      } else if (attackType === 'kick_mma') {
+        hitType = 'big';
+        label = 'ROUNDHOUSE!';
+      } else if (attackType === 'kick_back') {
+        hitType = 'stomach';
+        label = 'SPIN KICK!';
+      } else if (attackType === 'kick_low') {
+        hitType = 'legs';
+        label = 'LOW KICK!';
+      } else if (isKick) {
+        hitType = 'stomach';
+        label = 'POW!';
+      } else if (attackType === 'punch_hook') {
+        hitType = 'head';
+        label = 'HOOK!';
+      } else if (attackType === 'punch_combo') {
+        hitType = 'big';
+        label = 'FLURRY!';
+      } else if (attackType === 'punch_elbow') {
+        hitType = 'rib';
+        label = 'ELBOW!';
+      } else {
+        hitType = 'head';
+      }
+
       this.applyNonBossStrikeHit(defenderId, attackerId, defenderRig, defenderAnim, hit.impactPoint, damage, {
         knockback: isKick ? -5.2 : -3.8,
         jitter: 1.1,
-        label: isKick ? 'POW!' : undefined,
+        label,
         comboNote: isKick ? 3 : 1,
         shakeIntensity: isKick ? 0.16 : 0.11,
         shakeDuration: 0.18,
-        hitType: isKick ? 'stomach' : 'head',
+        hitType,
       });
 
       if (this.canShowCpuQuip()) {
@@ -2186,164 +2363,16 @@ export class GameController {
   }
 
   /**
-   * Native/retargeted multi-hit Mixamo combo (`KeyM`).
+   * Directional Flurry Combo shortcut.
    */
   public triggerMuayThaiAction(): void {
     if (this.isCinematicActive || this.gameManager.isControlsLocked()) return;
-
-    if (this.selectedCharacter !== 'chinu' && this.opponentCharacter === 'chinu') {
-      this.triggerAction2Counter(this.selectedCharacter, 'chinu');
-      return;
-    }
-
-    const attackerRig = this.rigs.get(this.selectedCharacter);
-    const targetRig = this.rigs.get(this.opponentCharacter);
-    if (attackerRig && targetRig) {
-      const dist = attackerRig.root.position.distanceTo(targetRig.root.position);
-      if (dist > 2.45) {
-        this.sound.playWhoosh(1.0);
-        this.setQuip(
-          FIGHTER_META[this.selectedCharacter].displayName,
-          'Out of range! Get closer!! 🥊',
-          true
-        );
-        this.syncHUD();
-        return;
-      }
-    }
-
-    this.runMuayThaiSequence(
-      this.selectedCharacter,
-      this.opponentCharacter,
-      MUAY_THAI_TIMINGS[this.selectedCharacter]
-    );
+    this.triggerStandardAttack(this.selectedCharacter, this.opponentCharacter, 'punch_combo');
   }
 
   public triggerChinuMuayThaiCombo(): void {
-    if (this.selectedCharacter === 'chinu') {
-      this.triggerMuayThaiAction();
-    }
-  }
-
-  private runMuayThaiSequence(
-    attackerId: CharacterId,
-    targetId: CharacterId,
-    timing: {
-      hit1DelayMs: number;
-      hit1Damage: number;
-      hit2DelayMs: number;
-      hit2Damage: number;
-      finisherDelayMs: number;
-      finisherDamage: number;
-    }
-  ): void {
-    const attackerAnim = this.anims.get(attackerId);
-    const targetAnim = this.anims.get(targetId);
-    const targetRig = this.rigs.get(targetId);
-    if (!attackerAnim || !targetAnim || !targetRig) return;
-
-    if (this.koRecoveryTimeoutId !== null) {
-      clearTimeout(this.koRecoveryTimeoutId);
-      this.koRecoveryTimeoutId = null;
-    }
-
-    this.cancelChinuEntry();
-    if (attackerId === 'chinu') {
-      this.resetPriyanshuAdmire();
-    }
-    this.isCinematicActive = true;
-    this.physics.setMoveInput(attackerId, 0, 0);
-    this.physics.setMoveInput(targetId, 0, 0);
-    this.physics.setLocomotionState(attackerId, false, null);
-    this.physics.setLocomotionState(targetId, false, null);
-    this.sound.playClick();
-    this.syncHUD();
-
-    const needsStandUp =
-      targetAnim.getState() === 'FALL_BACK' || targetAnim.getState() === 'DEAD';
-    if (needsStandUp) {
-      this.physics.setKnockedDown(targetId, false);
-      targetAnim.transitionTo('GET_UP', 0.08, true);
-    }
-
-    const startDelay = needsStandUp ? 480 : 0;
-
-    this.scheduleUnscaled(() => {
-      attackerAnim.transitionTo('MUAY_THAI', 0.06, true);
-      this.physics.applyDirectionalImpulse(attackerId, targetId, 3.6);
-      this.sound.playWhoosh(1.0);
-
-      // Combo Strike 1
-      this.scheduleUnscaled(() => {
-        const hitPos = targetRig.root.position.clone().setY(1.52);
-        targetAnim.transitionTo('HIT_HEAD', 0.04, true);
-        this.sound.playPunchHit(this.comboHits + 1);
-        this.effects.spawnPunchImpact(hitPos, timing.hit1Damage, 'POW!');
-        this.maybeSpawnCombatBlood(targetId, attackerId, hitPos, timing.hit1Damage);
-        this.flashTintFeedback(targetRig, 0xffffff, 0.7, 0.16);
-        this.sceneManager.triggerShake(0.14, 0.16);
-        this.applyDamageToFighter(targetId, attackerId, timing.hit1Damage, true);
-      }, timing.hit1DelayMs);
-
-      // Combo Strike 2
-      this.scheduleUnscaled(() => {
-        this.physics.applyDirectionalImpulse(attackerId, targetId, 2.6);
-        this.sound.playWhoosh(1.1);
-        const hitPos = targetRig.root.position.clone().setY(1.48);
-        targetAnim.transitionTo('HIT_STOMACH', 0.04, true);
-        this.sound.playPunchHit(this.comboHits + 2);
-        this.effects.spawnPunchImpact(hitPos, timing.hit2Damage, 'BAM!!');
-        this.maybeSpawnCombatBlood(targetId, attackerId, hitPos, timing.hit2Damage, 0.25);
-        this.flashTintFeedback(targetRig, 0xffffff, 0.8, 0.18);
-        this.sceneManager.triggerShake(0.18, 0.2);
-        this.applyDamageToFighter(targetId, attackerId, timing.hit2Damage, true);
-      }, timing.hit2DelayMs);
-
-      // Combo Strike 3: Finisher + Hit-Stop!
-      this.scheduleUnscaled(() => {
-        this.gameTimeScale = FREEZE_TIME_SCALE;
-        const finishPos = targetRig.root.position.clone().setY(1.42);
-        this.effects.spawnKickOverrideImpact(finishPos, timing.finisherDamage);
-        this.maybeSpawnCombatBlood(targetId, attackerId, finishPos, timing.finisherDamage, 0.75);
-        this.sound.playBossKickImpact();
-        this.flashTintFeedback(targetRig, 0xffd426, 0.9, 0.4);
-        this.sceneManager.triggerDramaticZoom(finishPos, 0.36);
-        this.sceneManager.triggerShake(0.3, 0.34);
-
-        this.recordHitQuip(targetId);
-        this.applyDamageToFighter(targetId, attackerId, timing.finisherDamage, true);
-
-        this.scheduleUnscaled(() => {
-          this.gameTimeScale = 1;
-          this.physics.setKnockedDown(targetId, true);
-          const isKOd =
-            (this.fighterHp.get(targetId) ?? 0) <= 0 ||
-            this.gameManager.getState() !== 'FIGHTING';
-          const fallState = isKOd && targetAnim.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
-          targetAnim.transitionTo(fallState, 0.04, true);
-          this.physics.applyDirectionalImpulse(targetId, attackerId, -8.2);
-          this.effects.spawnDizzyStars(targetRig.headAnchor, 1.55);
-          this.sound.playMatSlamAndDizzy();
-
-          this.scheduleUnscaled(() => {
-            const isKOd =
-              (this.fighterHp.get(targetId) ?? 0) <= 0 ||
-              this.gameManager.getState() !== 'FIGHTING';
-            if (!isKOd) {
-              targetAnim.transitionTo('GET_UP', 0.1, true);
-            }
-
-            this.scheduleUnscaled(() => {
-              if (!isKOd) {
-                this.physics.setKnockedDown(targetId, false);
-              }
-              this.isCinematicActive = false;
-              this.syncHUD();
-            }, 520);
-          }, 1450);
-        }, 360);
-      }, timing.finisherDelayMs);
-    }, startDelay);
+    if (this.isCinematicActive || this.gameManager.isControlsLocked()) return;
+    this.triggerStandardAttack(this.selectedCharacter, this.opponentCharacter, 'kick_mma');
   }
 
   /**
@@ -2605,8 +2634,8 @@ export class GameController {
         dirToChinu.normalize();
       }
 
-      // 0.37m closes the gap so their lips directly touch, with hands holding waist and neck naturally
-      const kissDist = 0.37;
+      // 0.32m ensures when both lean forward into the embrace, their lips touch directly!
+      const kissDist = 0.32;
       const kissSpotX = priyanshuPos.x + dirToChinu.x * kissDist;
       const kissSpotZ = priyanshuPos.z + dirToChinu.z * kissDist;
       const returnSpotX = priyanshuPos.x + dirToChinu.x * 2.05;
@@ -2614,7 +2643,7 @@ export class GameController {
 
       const kissCenter = new THREE.Vector3(
         (kissSpotX + priyanshuPos.x) * 0.5,
-        1.63,
+        1.52,
         (kissSpotZ + priyanshuPos.z) * 0.5
       );
 
@@ -2622,7 +2651,7 @@ export class GameController {
       const chinuYaw = Math.atan2(-dirToChinu.x, -dirToChinu.z);
 
       this.cpuAi.onCpuInterrupted(performance.now(), 4500);
-      this.physics.setKinematicHold(true, 0.30);
+      this.physics.setKinematicHold(true, 0.15);
       this.physics.setLocomotionState('chinu', false, chinuYaw);
       this.physics.setLocomotionState('priyanshu', false, priyanshuYaw);
       chinuRig.modelRoot.rotation.y = chinuYaw;
@@ -2654,7 +2683,7 @@ export class GameController {
             const midpoint = chinuRig.root.position
               .clone()
               .lerp(priyanshuRig.root.position, 0.5)
-              .setY(1.63);
+              .setY(1.52);
 
             this.sound.playKissMwah();
             this.effects.spawnKissHealEffects(midpoint);

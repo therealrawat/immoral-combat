@@ -90,11 +90,13 @@ interface FighterHUDSlotElements {
 export interface UIActionHandlers {
   onPrimaryAction: () => void;
   onKickAction: () => void;
+  onJumpAction?: () => void;
+  onCrouchAction?: (isCrouching: boolean) => void;
   onBlockAction?: (isBlocking: boolean) => void;
   onSignatureAction: () => void;
   onSecondarySignatureAction?: () => void;
   onCounterAction: () => void;
-  onMuayThaiAction: () => void;
+  onMuayThaiAction?: () => void;
   onBossPoseAction: () => void;
   onLoungePoseAction: () => void;
   onChampPoseAction: () => void;
@@ -237,7 +239,8 @@ export class UIManager {
   private readonly touchZoneActions = document.getElementById('touch-zone-actions');
   private readonly touchBtnPunch = document.getElementById('touch-btn-punch');
   private readonly touchBtnKick = document.getElementById('touch-btn-kick');
-  private readonly touchBtnCombo = document.getElementById('touch-btn-combo');
+  private readonly touchBtnJump =
+    document.getElementById('touch-btn-jump') ?? document.getElementById('touch-btn-combo');
   private readonly touchBtnCounter = document.getElementById('touch-btn-counter');
   private readonly touchBtnBlock = document.getElementById('touch-btn-block');
   private readonly touchBtnSignature = document.getElementById('touch-btn-signature');
@@ -617,7 +620,7 @@ export class UIManager {
     bindTouchButton(this.touchBtnPunch, () => this.handlers.onPrimaryAction());
     bindTouchButton(this.touchBtnKick, () => this.handlers.onKickAction());
     bindHoldTouchButton(this.touchBtnBlock, (active) => this.handlers.onBlockAction?.(active));
-    bindTouchButton(this.touchBtnCombo, () => this.handlers.onMuayThaiAction());
+    bindTouchButton(this.touchBtnJump, () => this.handlers.onJumpAction?.());
     bindTouchButton(this.touchBtnCounter, () => this.handlers.onCounterAction());
     bindTouchButton(this.touchBtnSignature, () => this.handlers.onSignatureAction());
     bindTouchButton(this.touchBtnSpecial, () => this.handlers.onSecondarySignatureAction?.());
@@ -1282,11 +1285,13 @@ export class UIManager {
 
     const keyActionMap: Record<string, () => void> = {
       Space: () => this.handlers.onPrimaryAction(),
+      KeyJ: () => this.handlers.onPrimaryAction(),
       KeyK: () => this.handlers.onKickAction(),
+      KeyW: () => this.handlers.onJumpAction?.(),
+      ArrowUp: () => this.handlers.onJumpAction?.(),
       KeyF: () => this.handlers.onSignatureAction(),
       KeyG: () => this.handlers.onSecondarySignatureAction?.(),
       KeyC: () => this.handlers.onCounterAction(),
-      KeyM: () => this.handlers.onMuayThaiAction(),
       KeyP: () => this.handlers.onBossPoseAction(),
       KeyL: () => this.handlers.onLoungePoseAction(),
       KeyV: () => this.handlers.onChampPoseAction(),

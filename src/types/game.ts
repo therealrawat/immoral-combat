@@ -10,7 +10,16 @@ export type FighterState =
   | 'RUN'
   | 'ADMIRE'
   | 'PUNCH'
+  | 'PUNCH_HOOK'
+  | 'PUNCH_ELBOW'
+  | 'PUNCH_COMBO'
   | 'KICK'
+  | 'KICK_MMA'
+  | 'KICK_BACK'
+  | 'KICK_LOW'
+  | 'KICK_FLYING'
+  | 'JUMP'
+  | 'CROUCH'
   | 'SIGNATURE'
   | 'MUAY_THAI'
   | 'POSE'
@@ -25,6 +34,7 @@ export type FighterState =
   | 'HIT'
   | 'HIT_HEAD'
   | 'HIT_STOMACH'
+  | 'HIT_RIB'
   | 'HIT_BIG'
   | 'HIT_LEGS'
   | 'HIT_CAR'
@@ -74,13 +84,26 @@ export interface FighterPhysicsBody {
   knockedDown: boolean;
   movementPaused?: boolean;
   isRunning?: boolean;
+  isJumping?: boolean;
+  isCrouching?: boolean;
   customYaw?: number | null;
 }
+
+export type CombatAttackType =
+  | 'punch'
+  | 'punch_hook'
+  | 'punch_elbow'
+  | 'punch_combo'
+  | 'kick'
+  | 'kick_mma'
+  | 'kick_back'
+  | 'kick_low'
+  | 'kick_flying';
 
 export interface CombatHitEvent {
   attacker: CharacterId;
   defender: CharacterId;
-  move: 'punch' | 'kick';
+  move: CombatAttackType | 'punch' | 'kick';
   damage: number;
   impactPoint: THREE.Vector3;
 }

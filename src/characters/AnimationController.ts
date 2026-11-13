@@ -4,7 +4,14 @@ import { createProceduralClips } from './ProceduralClips';
 
 const ONE_SHOT_STATES = new Set<FighterState>([
   'PUNCH',
+  'PUNCH_HOOK',
+  'PUNCH_ELBOW',
+  'PUNCH_COMBO',
   'KICK',
+  'KICK_MMA',
+  'KICK_BACK',
+  'KICK_LOW',
+  'KICK_FLYING',
   'SIGNATURE',
   'MUAY_THAI',
   'POSE',
@@ -19,6 +26,7 @@ const ONE_SHOT_STATES = new Set<FighterState>([
   'HIT',
   'HIT_HEAD',
   'HIT_STOMACH',
+  'HIT_RIB',
   'HIT_BIG',
   'HIT_LEGS',
   'HIT_CAR',
@@ -174,14 +182,46 @@ export class AnimationController {
     let nextAction = this.actions.get(resolvedState);
     if (
       !nextAction &&
+      (resolvedState === 'PUNCH_HOOK' ||
+        resolvedState === 'PUNCH_ELBOW' ||
+        resolvedState === 'PUNCH_COMBO')
+    ) {
+      resolvedState = 'PUNCH';
+      nextAction = this.actions.get(resolvedState);
+    } else if (
+      !nextAction &&
+      (resolvedState === 'KICK_MMA' ||
+        resolvedState === 'KICK_BACK' ||
+        resolvedState === 'KICK_LOW' ||
+        resolvedState === 'KICK_FLYING')
+    ) {
+      resolvedState = 'KICK';
+      nextAction = this.actions.get(resolvedState);
+    } else if (
+      !nextAction &&
       (resolvedState === 'HIT_HEAD' ||
         resolvedState === 'HIT_STOMACH' ||
+        resolvedState === 'HIT_RIB' ||
         resolvedState === 'HIT_BIG' ||
         resolvedState === 'HIT_LEGS' ||
         resolvedState === 'HIT_CAR')
     ) {
       resolvedState = 'HIT';
       nextAction = this.actions.get(resolvedState);
+    } else if (!nextAction && resolvedState === 'JUMP') {
+      resolvedState = 'KICK_FLYING';
+      nextAction = this.actions.get(resolvedState);
+      if (!nextAction) {
+        resolvedState = 'IDLE';
+        nextAction = this.actions.get(resolvedState);
+      }
+    } else if (!nextAction && resolvedState === 'CROUCH') {
+      resolvedState = 'BLOCK';
+      nextAction = this.actions.get(resolvedState);
+      if (!nextAction) {
+        resolvedState = 'IDLE';
+        nextAction = this.actions.get(resolvedState);
+      }
     } else if (!nextAction && resolvedState === 'BLUSH') {
       resolvedState = 'KISS';
       nextAction = this.actions.get(resolvedState);
@@ -288,10 +328,17 @@ export class AnimationController {
       return 0.22;
     }
 
-    // Combat strike startup (PUNCH, KICK, MUAY_THAI, STABBING, LIFTING)
+    // Combat strike startup
     if (
       toState === 'PUNCH' ||
+      toState === 'PUNCH_HOOK' ||
+      toState === 'PUNCH_ELBOW' ||
+      toState === 'PUNCH_COMBO' ||
       toState === 'KICK' ||
+      toState === 'KICK_MMA' ||
+      toState === 'KICK_BACK' ||
+      toState === 'KICK_LOW' ||
+      toState === 'KICK_FLYING' ||
       toState === 'MUAY_THAI' ||
       toState === 'STABBING' ||
       toState === 'LIFTING'
@@ -304,12 +351,18 @@ export class AnimationController {
       toState === 'HIT' ||
       toState === 'HIT_HEAD' ||
       toState === 'HIT_STOMACH' ||
+      toState === 'HIT_RIB' ||
       toState === 'HIT_BIG' ||
       toState === 'HIT_LEGS' ||
       toState === 'HIT_CAR' ||
       toState === 'BLOCK'
     ) {
       return 0.12;
+    }
+
+    // Jumping & Crouching stances
+    if (toState === 'JUMP' || toState === 'CROUCH') {
+      return 0.14;
     }
 
     // Poses, victory gestures, emotes, salute, get up

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CharacterId, CombatHitEvent, FighterPhysicsBody, FighterRig } from '../types/game';
+import { CharacterId, CombatHitEvent, FighterPhysicsBody, FighterRig, CombatAttackType } from '../types/game';
 import { RING_HALF_WIDTH } from '../core/ArenaBuilder';
 
 const RING_CLAMP_LIMIT = RING_HALF_WIDTH - 0.52;
@@ -68,6 +68,10 @@ export class PhysicsCombatSystem {
     return this.bodies.get(id)?.position ?? null;
   }
 
+  public getBody(id: CharacterId): FighterPhysicsBody | null {
+    return this.bodies.get(id) ?? null;
+  }
+
   public getMoveInput(id: CharacterId): THREE.Vector2 | null {
     return this.bodies.get(id)?.moveInput ?? null;
   }
@@ -78,6 +82,36 @@ export class PhysicsCombatSystem {
 
   public isMovementPaused(id: CharacterId): boolean {
     return Boolean(this.bodies.get(id)?.movementPaused);
+  }
+
+  public isJumping(id: CharacterId): boolean {
+    const body = this.bodies.get(id);
+    return Boolean(body && (body.isJumping || body.position.y > 0.05));
+  }
+
+  public isCrouching(id: CharacterId): boolean {
+    return Boolean(this.bodies.get(id)?.isCrouching);
+  }
+
+  public triggerJump(id: CharacterId, impulse = 5.4): boolean {
+    const body = this.bodies.get(id);
+    if (!body || body.knockedDown || body.movementPaused || body.position.y > 0.05) {
+      return false;
+    }
+    body.velocity.y = impulse;
+    body.isJumping = true;
+    body.isCrouching = false;
+    return true;
+  }
+
+  public setCrouching(id: CharacterId, crouching: boolean): void {
+    const body = this.bodies.get(id);
+    if (!body || body.knockedDown || body.movementPaused) return;
+    if (body.isJumping || body.position.y > 0.05) {
+      body.isCrouching = false;
+      return;
+    }
+    body.isCrouching = crouching;
   }
 
   public setLocomotionState(
@@ -196,9 +230,27 @@ export class PhysicsCombatSystem {
       // Apply knockback / lunge velocity
       body.position.addScaledVector(body.velocity, deltaSeconds);
 
-      // Ground damping
+      // Gravity & Jumping physics arc
+      const GRAVITY = 16.0;
+      if (body.position.y > 0 || (body.velocity.y && Math.abs(body.velocity.y) > 0.001)) {
+        body.velocity.y -= GRAVITY * deltaSeconds;
+        body.position.y += body.velocity.y * deltaSeconds;
+        if (body.position.y <= 0) {
+          body.position.y = 0;
+          body.velocity.y = 0;
+          body.isJumping = false;
+        } else {
+          body.isJumping = true;
+        }
+      } else {
+        body.position.y = 0;
+        body.isJumping = false;
+      }
+
+      // Ground horizontal damping
       const damping = Math.exp(-GROUND_FRICTION * deltaSeconds);
-      body.velocity.multiplyScalar(damping);
+      body.velocity.x *= damping;
+      body.velocity.z *= damping;
 
       // Elastic rope boundary checks & bounce feedback
       let bounced = false;
@@ -299,6 +351,10 @@ export class PhysicsCombatSystem {
       rig.root.position.copy(body.position);
       rig.root.updateMatrixWorld(true);
       rig.hurtbox.setFromObject(rig.hurtboxMesh);
+      if (body.isCrouching) {
+        // Lower upper hurtbox boundary so high strikes whiff or glance
+        rig.hurtbox.max.y = THREE.MathUtils.lerp(rig.hurtbox.max.y, rig.hurtbox.min.y + 1.1, 0.6);
+      }
     }
   }
 
@@ -318,7 +374,7 @@ export class PhysicsCombatSystem {
   public resolveStrike(
     attackerId: CharacterId,
     defenderId: CharacterId,
-    move: 'punch' | 'kick',
+    move: CombatAttackType | 'punch' | 'kick',
     damage: number
   ): CombatHitEvent | null {
     const attacker = this.rigs.get(attackerId);
@@ -328,9 +384,22 @@ export class PhysicsCombatSystem {
     attacker.root.updateMatrixWorld(true);
     defender.root.updateMatrixWorld(true);
 
+    const isKick = move.startsWith('kick');
     const dist = attacker.root.position.distanceTo(defender.root.position);
-    const maxRange =
-      move === 'kick' ? PhysicsCombatSystem.KICK_MAX_RANGE : PhysicsCombatSystem.PUNCH_MAX_RANGE;
+    let maxRange = isKick ? PhysicsCombatSystem.KICK_MAX_RANGE : PhysicsCombatSystem.PUNCH_MAX_RANGE;
+
+    if (move === 'kick_flying') {
+      maxRange = 2.25;
+    } else if (move === 'kick_mma' || move === 'kick_back') {
+      maxRange = 2.05;
+    } else if (move === 'kick_low') {
+      maxRange = 1.85;
+    } else if (move === 'punch_elbow') {
+      maxRange = 1.45;
+    } else if (move === 'punch_hook' || move === 'punch_combo') {
+      maxRange = 1.72;
+    }
+
     if (dist > maxRange) {
       return null;
     }
@@ -349,11 +418,19 @@ export class PhysicsCombatSystem {
     }
 
     defender.hurtbox.setFromObject(defender.hurtboxMesh);
+    const defenderBody = this.bodies.get(defenderId);
+    if (defenderBody?.isCrouching) {
+      defender.hurtbox.max.y = THREE.MathUtils.lerp(
+        defender.hurtbox.max.y,
+        defender.hurtbox.min.y + 1.1,
+        0.6
+      );
+    }
 
-    const strikeAnchor = move === 'kick' ? attacker.footAnchor : attacker.fistAnchor;
+    const strikeAnchor = isKick ? attacker.footAnchor : attacker.fistAnchor;
     strikeAnchor.getWorldPosition(this.tempVecA);
 
-    this.tempSphere.set(this.tempVecA, move === 'kick' ? 0.95 : 0.8);
+    this.tempSphere.set(this.tempVecA, isKick ? 0.95 : 0.8);
     const intersects = defender.hurtbox.intersectsSphere(this.tempSphere);
     const closeQuarters = dist <= maxRange * 0.88;
 
@@ -363,7 +440,25 @@ export class PhysicsCombatSystem {
 
     defender.hurtbox.getCenter(this.tempVecB);
     const impactPoint = this.tempVecA.clone().lerp(this.tempVecB, 0.35);
-    impactPoint.y = move === 'kick' ? 1.4 : 1.55;
+
+    // Differentiated impact height based on specific attack trajectory
+    if (move === 'kick_flying') {
+      impactPoint.y = 1.75;
+    } else if (move === 'punch_hook') {
+      impactPoint.y = 1.65;
+    } else if (move === 'punch_combo') {
+      impactPoint.y = 1.55;
+    } else if (move === 'punch_elbow') {
+      impactPoint.y = 1.30;
+    } else if (move === 'kick_low') {
+      impactPoint.y = 0.82;
+    } else if (move === 'kick_mma' || move === 'kick_back') {
+      impactPoint.y = 1.50;
+    } else if (isKick) {
+      impactPoint.y = 1.40;
+    } else {
+      impactPoint.y = 1.50;
+    }
 
     return {
       attacker: attackerId,
