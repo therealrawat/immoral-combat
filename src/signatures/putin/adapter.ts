@@ -83,7 +83,9 @@ export function runPutinSpecialAbility(
           );
         },
         onTriggerOpponentHit: (heavy) => {
-          if (!heavy) {
+          if (heavy) {
+            targetAnim.transitionTo('HIT_CAR', 0.04, true);
+          } else {
             targetAnim.transitionTo('HIT', 0.04, true);
           }
         },
@@ -94,6 +96,7 @@ export function runPutinSpecialAbility(
         },
         onTableHit: (impactPos, pushDir, _edgePos, damage) => {
           tableHitHandled = true;
+          targetAnim.transitionTo('HIT_CAR', 0.04, true);
           ctx.setTimeScale(CINEMATIC_FREEZE_TIME_SCALE);
           ctx.sound.playSignatureImpact();
           const hitPoint = impactPos.clone().setY(1.42);
@@ -111,6 +114,7 @@ export function runPutinSpecialAbility(
             launchKnockdownAndRecover(ctx, targetId, attackerId, targetRig, -5.8, {
               starHeight: 1.55,
               cpuCooldownMs: 1100,
+              knockdownState: 'HIT_CAR',
             });
           }, 260);
         },

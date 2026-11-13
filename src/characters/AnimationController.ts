@@ -21,6 +21,7 @@ const ONE_SHOT_STATES = new Set<FighterState>([
   'HIT_STOMACH',
   'HIT_BIG',
   'HIT_LEGS',
+  'HIT_CAR',
   'BLOCK',
   'ATTEMPT_ATTACK',
   'FALL_BACK',
@@ -175,7 +176,8 @@ export class AnimationController {
       (resolvedState === 'HIT_HEAD' ||
         resolvedState === 'HIT_STOMACH' ||
         resolvedState === 'HIT_BIG' ||
-        resolvedState === 'HIT_LEGS')
+        resolvedState === 'HIT_LEGS' ||
+        resolvedState === 'HIT_CAR')
     ) {
       resolvedState = 'HIT';
       nextAction = this.actions.get(resolvedState);

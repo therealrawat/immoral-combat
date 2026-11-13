@@ -1,4 +1,4 @@
-import type { CharacterId, FighterRig } from '../types/game';
+import type { CharacterId, FighterRig, FighterState } from '../types/game';
 import type { SignatureMoveContext } from './types';
 
 export const CINEMATIC_FREEZE_TIME_SCALE = 0.03;
@@ -79,6 +79,7 @@ export function launchKnockdownAndRecover(
     releaseKinematicHoldOnFinish?: boolean;
     cpuCooldownMs?: number;
     beforeKnockdown?: () => void;
+    knockdownState?: FighterState;
   }
 ): void {
   const defenderAnim = ctx.getAnim(defenderId);
@@ -91,8 +92,15 @@ export function launchKnockdownAndRecover(
   options?.beforeKnockdown?.();
   ctx.physics.setKnockedDown(defenderId, true);
   const isDeadlyStrike = ctx.getFighterHp(defenderId) <= 0;
-  const fallState = isDeadlyStrike && defenderAnim.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
-  defenderAnim.transitionTo(fallState, 0.04, true);
+  const fallState: FighterState =
+    isDeadlyStrike && defenderAnim.hasState('DEAD')
+      ? 'DEAD'
+      : options?.knockdownState && defenderAnim.hasState(options.knockdownState)
+        ? options.knockdownState
+        : 'FALL_BACK';
+  if (defenderAnim.getState() !== fallState || !options?.knockdownState) {
+    defenderAnim.transitionTo(fallState, 0.04, true);
+  }
   ctx.physics.applyDirectionalImpulse(defenderId, attackerId, impulseStrength);
   ctx.effects.spawnDizzyStars(defenderRig.headAnchor, options?.starHeight ?? 1.55);
   ctx.sound.playMatSlamAndDizzy();

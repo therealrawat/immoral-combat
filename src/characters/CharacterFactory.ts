@@ -797,6 +797,7 @@ export class CharacterFactory {
             yawOffsetRad: spec.yawOffsetRad,
             hipsYOffset: spec.hipsYOffset,
             holdDurationSec: spec.holdDurationSec,
+            trimStartSec: spec.trimStartSec,
             stripHorizontalRootMotion: spec.stripHorizontalRootMotion,
           });
           clips[spec.state] = retargeted;

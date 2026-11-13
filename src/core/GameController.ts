@@ -598,6 +598,7 @@ export class GameController {
         finishedState === 'HIT_STOMACH' ||
         finishedState === 'HIT_BIG' ||
         finishedState === 'HIT_LEGS' ||
+        finishedState === 'HIT_CAR' ||
         finishedState === 'BLOCK';
 
       if (isHitVariant || finishedState === 'BLUSH' || finishedState === 'GET_UP') {
@@ -1552,12 +1553,14 @@ export class GameController {
       comboNote: number;
       shakeIntensity: number;
       shakeDuration: number;
-      hitType?: 'head' | 'stomach' | 'body' | 'big' | 'legs';
+      hitType?: 'head' | 'stomach' | 'body' | 'big' | 'legs' | 'car';
     }
   ): void {
     this.physics.setLocomotionState(defenderId, false, null);
     const targetHitState: FighterState =
-      opts.hitType === 'head'
+      opts.hitType === 'car'
+        ? 'HIT_CAR'
+        : opts.hitType === 'head'
         ? 'HIT_HEAD'
         : opts.hitType === 'stomach'
         ? 'HIT_STOMACH'
@@ -1653,11 +1656,11 @@ export class GameController {
       if (currentState === 'FALL_BACK' || currentState === 'DEAD' || currentState === 'GET_UP') return;
 
       const hit = this.physics.resolveStrike(attackerId, defenderId, move, damage);
-      const impactPoint =
-        clickedPoint ??
-        (hit
-          ? hit.impactPoint
-          : defenderRig.root.position.clone().setY(isKick ? 1.4 : 1.5));
+      if (!hit) {
+        // Strike whiffed cleanly - defender was out of reach or attacker facing away
+        return;
+      }
+      const impactPoint = clickedPoint ?? hit.impactPoint;
 
       if (defenderId === this.opponentCharacter) {
         this.cpuAi.onCpuInterrupted(performance.now(), 750);
@@ -2190,6 +2193,22 @@ export class GameController {
       return;
     }
 
+    const attackerRig = this.rigs.get(this.selectedCharacter);
+    const targetRig = this.rigs.get(this.opponentCharacter);
+    if (attackerRig && targetRig) {
+      const dist = attackerRig.root.position.distanceTo(targetRig.root.position);
+      if (dist > 2.45) {
+        this.sound.playWhoosh(1.0);
+        this.setQuip(
+          FIGHTER_META[this.selectedCharacter].displayName,
+          'Out of range! Get closer!! 🥊',
+          true
+        );
+        this.syncHUD();
+        return;
+      }
+    }
+
     this.runMuayThaiSequence(
       this.selectedCharacter,
       this.opponentCharacter,
@@ -2345,9 +2364,10 @@ export class GameController {
     this.scheduleUnscaled(() => {
       if (this.isCinematicActive) return;
       const hit = this.physics.resolveStrike(attackerId, defenderId, 'kick', OPPONENT_STRIKE_DAMAGE);
-      const impactPoint = hit
-        ? hit.impactPoint
-        : defenderRig.root.position.clone().setY(1.45);
+      if (!hit) {
+        return;
+      }
+      const impactPoint = hit.impactPoint;
 
       const isBlocked = this.isFighterBlocking(defenderId);
       if (isBlocked) {

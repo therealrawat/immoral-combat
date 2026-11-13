@@ -115,6 +115,7 @@ export function runTrumpSpecialAbility(
           }
 
           ctx.setTimeScale(CINEMATIC_FREEZE_TIME_SCALE);
+          targetAnim.transitionTo('HIT_CAR', 0.04, true);
           const impactPoint = targetRig.root.position.clone().setY(1.4);
           ctx.effects.spawnPunchImpact(impactPoint, damage, 'WALL SLAM! 🧱');
           ctx.spawnBloodImpact?.(targetId, attackerId, impactPoint, damage, 0.85);
@@ -129,6 +130,7 @@ export function runTrumpSpecialAbility(
             launchKnockdownAndRecover(ctx, targetId, attackerId, targetRig, -6.5, {
               starHeight: 1.55,
               cpuCooldownMs: 1100,
+              knockdownState: 'HIT_CAR',
             });
           }, 260);
         },

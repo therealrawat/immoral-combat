@@ -19,6 +19,7 @@ export class PhysicsCombatSystem {
   private readonly lastBounceAt = new Map<CharacterId, number>();
   private readonly tempVecA = new THREE.Vector3();
   private readonly tempVecB = new THREE.Vector3();
+  private readonly tempVecForward = new THREE.Vector3();
   private readonly tempSphere = new THREE.Sphere();
   private onRopeBounce?: RopeBounceHandler;
   private kinematicHold = false;
@@ -307,8 +308,12 @@ export class PhysicsCombatSystem {
     return current + diff * t;
   }
 
+  /** Realistic strike reach limits in ring units (punch ~1.65m, kick ~1.95m). */
+  public static readonly PUNCH_MAX_RANGE = 1.65;
+  public static readonly KICK_MAX_RANGE = 1.95;
+
   /**
-   * Evaluates strike sphere vs defender Box3 hurtbox, returning hit event if within range.
+   * Evaluates strike reach, facing orientation, and hurtbox intersection, returning hit event if within range.
    */
   public resolveStrike(
     attackerId: CharacterId,
@@ -322,16 +327,37 @@ export class PhysicsCombatSystem {
 
     attacker.root.updateMatrixWorld(true);
     defender.root.updateMatrixWorld(true);
+
+    const dist = attacker.root.position.distanceTo(defender.root.position);
+    const maxRange =
+      move === 'kick' ? PhysicsCombatSystem.KICK_MAX_RANGE : PhysicsCombatSystem.PUNCH_MAX_RANGE;
+    if (dist > maxRange) {
+      return null;
+    }
+
+    // Directional facing check: Attacker must be facing generally towards the opponent (in front cone)
+    const dx = defender.root.position.x - attacker.root.position.x;
+    const dz = defender.root.position.z - attacker.root.position.z;
+    const planarDist = Math.hypot(dx, dz);
+    if (planarDist > 0.05) {
+      attacker.modelRoot.getWorldDirection(this.tempVecForward);
+      const dot = (this.tempVecForward.x * dx + this.tempVecForward.z * dz) / planarDist;
+      // If dot < 0.1, opponent is behind or perpendicular to the attacker
+      if (dot < 0.1) {
+        return null;
+      }
+    }
+
     defender.hurtbox.setFromObject(defender.hurtboxMesh);
 
     const strikeAnchor = move === 'kick' ? attacker.footAnchor : attacker.fistAnchor;
     strikeAnchor.getWorldPosition(this.tempVecA);
 
-    this.tempSphere.set(this.tempVecA, move === 'kick' ? 1.2 : 1.05);
+    this.tempSphere.set(this.tempVecA, move === 'kick' ? 0.95 : 0.8);
     const intersects = defender.hurtbox.intersectsSphere(this.tempSphere);
+    const closeQuarters = dist <= maxRange * 0.88;
 
-    const dist = attacker.root.position.distanceTo(defender.root.position);
-    if (!intersects && dist > 2.55) {
+    if (!intersects && !closeQuarters) {
       return null;
     }
 

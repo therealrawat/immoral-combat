@@ -27,6 +27,7 @@ export type FighterState =
   | 'HIT_STOMACH'
   | 'HIT_BIG'
   | 'HIT_LEGS'
+  | 'HIT_CAR'
   | 'BLOCK'
   | 'ATTEMPT_ATTACK'
   | 'FALL_BACK'

@@ -646,6 +646,7 @@ export function createHumanoidGLBClips(
     HIT_STOMACH: HIT.clone(),
     HIT_BIG: HIT.clone(),
     HIT_LEGS: HIT.clone(),
+    HIT_CAR: HIT.clone(),
     BLOCK: HIT.clone(),
     ATTEMPT_ATTACK,
     FALL_BACK,

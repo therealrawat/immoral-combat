@@ -29,6 +29,7 @@ export interface RetargetClipOptions {
   yawOffsetRad?: number;
   hipsYOffset?: number;
   holdDurationSec?: number;
+  trimStartSec?: number;
   stripHorizontalRootMotion?: boolean;
   retargetRotations?: boolean;
 }
@@ -299,6 +300,7 @@ export function retargetClipToCharacter(
     yawOffsetRad = 0,
     hipsYOffset = 0,
     holdDurationSec,
+    trimStartSec = 0,
     stripHorizontalRootMotion = false,
     retargetRotations = true,
   } = options;
@@ -362,6 +364,30 @@ export function retargetClipToCharacter(
       const firstPose = track.values.subarray(0, stride);
       newValues.set(firstPose, 0);
       newValues.set(firstPose, stride);
+    } else if (trimStartSec > 0 && track.times.length > 0) {
+      let firstIdx = -1;
+      for (let i = 0; i < track.times.length; i++) {
+        if (track.times[i] >= trimStartSec) {
+          firstIdx = i;
+          break;
+        }
+      }
+      if (firstIdx === -1) {
+        const lastIdx = track.times.length - 1;
+        newTimes = new Float32Array([0]);
+        newValues = new Float32Array(track.values.subarray(lastIdx * stride, (lastIdx + 1) * stride));
+      } else {
+        const count = track.times.length - firstIdx;
+        newTimes = new Float32Array(count);
+        newValues = new Float32Array(count * stride);
+        for (let i = 0; i < count; i++) {
+          newTimes[i] = Math.max(0, track.times[firstIdx + i] - trimStartSec);
+        }
+        if (newTimes.length > 0) {
+          newTimes[0] = 0;
+        }
+        newValues.set(track.values.subarray(firstIdx * stride));
+      }
     } else {
       newTimes = new Float32Array(track.times);
       newValues = new Float32Array(track.values);
@@ -473,6 +499,10 @@ export function retargetClipToCharacter(
   }
 
   const finalDuration =
-    holdDurationSec && holdDurationSec > 0 ? holdDurationSec : sourceClip.duration;
+    holdDurationSec && holdDurationSec > 0
+      ? holdDurationSec
+      : trimStartSec > 0
+        ? Math.max(0.01, sourceClip.duration - trimStartSec)
+        : sourceClip.duration;
   return new THREE.AnimationClip(clipName, finalDuration, retargetedTracks);
 }

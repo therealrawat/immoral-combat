@@ -9,6 +9,7 @@ export interface NativeGLBClipSpec {
   yawOffsetRad?: number;
   hipsYOffset?: number;
   holdDurationSec?: number;
+  trimStartSec?: number;
   stripHorizontalRootMotion?: boolean;
 }
 
@@ -18,6 +19,7 @@ interface ConventionMoveRule {
   moveKeys: readonly string[];
   defaultSpeed: number;
   stripHorizontalRootMotion?: boolean;
+  trimStartSec?: number;
 }
 
 const MODEL_GLOB_URLS = import.meta.glob<string>('../../models/**/*.glb', {
@@ -305,6 +307,14 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     stripHorizontalRootMotion: true,
   },
   {
+    state: 'HIT_CAR',
+    clipSuffix: 'HitCar',
+    moveKeys: ['hit-by-car', 'big-hit-to-head'],
+    defaultSpeed: 1.85,
+    stripHorizontalRootMotion: true,
+    trimStartSec: 2.65,
+  },
+  {
     state: 'BLOCK',
     clipSuffix: 'Block',
     moveKeys: ['body-block', 'block'],
@@ -557,6 +567,7 @@ export function buildConventionNativeClipSpecs(id: CharacterId): NativeGLBClipSp
       yawOffsetRad: resolved.isSharedCentral ? undefined : custom.yawOffsetRad,
       hipsYOffset: resolved.isSharedCentral ? undefined : custom.hipsYOffset,
       holdDurationSec: custom.holdDurationSec,
+      trimStartSec: custom.trimStartSec ?? rule.trimStartSec,
       stripHorizontalRootMotion: custom.stripHorizontalRootMotion ?? rule.stripHorizontalRootMotion,
     });
   }
