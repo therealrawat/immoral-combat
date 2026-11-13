@@ -171,6 +171,9 @@ function buildModelAssetRegistry(): SplitModelRegistry {
     ['kiss', ['kiss', 'kiss-1']],
     ['kiss-1', ['kiss-1', 'kiss-(1)', 'kiss1']],
     ['blush', ['kiss-1', 'kiss-(1)', 'kiss1', 'kiss']],
+    ['lifting', ['lifting', 'lift']],
+    ['stabbing', ['stabbing', 'stab']],
+    ['salute', ['salute', 'entry', 'praying']],
   ];
 
   for (const [semanticKey, candidateKeys] of aliasDefaults) {
@@ -348,6 +351,27 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
     defaultSpeed: 2.6,
     stripHorizontalRootMotion: true,
   },
+  {
+    state: 'LIFTING',
+    clipSuffix: 'Lifting',
+    moveKeys: ['lifting', 'lift'],
+    defaultSpeed: 1.35,
+    stripHorizontalRootMotion: true,
+  },
+  {
+    state: 'STABBING',
+    clipSuffix: 'Stabbing',
+    moveKeys: ['stabbing', 'stab'],
+    defaultSpeed: 1.15,
+    stripHorizontalRootMotion: true,
+  },
+  {
+    state: 'SALUTE',
+    clipSuffix: 'Salute',
+    moveKeys: ['salute', 'entry', 'praying'],
+    defaultSpeed: 1.05,
+    stripHorizontalRootMotion: true,
+  },
 ];
 
 const CHARACTER_SPEC_OVERRIDES: Partial<
@@ -413,6 +437,15 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
     PUNCH: { moveKeys: ['punching'], speed: 2.35 },
     KICK: { moveKeys: ['flying-kick', 'mma-kick'], clipName: 'PutinNativeFlyingKick', speed: 2.15 },
     MUAY_THAI: { moveKeys: ['mix-kick-punch', 'mma-kick', 'quad-punch'], clipName: 'PutinNativeMuayThai', speed: 2.1 },
+    LIFTING: { moveKeys: ['lifting'], clipName: 'PutinNativeKnifeLift', speed: 1.35, stripHorizontalRootMotion: true },
+    STABBING: { moveKeys: ['stabbing'], clipName: 'PutinNativeKnifeStab', speed: 1.15, stripHorizontalRootMotion: true },
+    SALUTE: {
+      moveKeys: ['salute'],
+      clipName: 'PutinNativeSalute',
+      speed: 1.05,
+      holdDurationSec: 2.8,
+      stripHorizontalRootMotion: true,
+    },
     POSE: {
       moveKeys: ['salute'],
       clipName: 'PutinNativeSaluteVictory',

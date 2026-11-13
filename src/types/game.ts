@@ -32,7 +32,10 @@ export type FighterState =
   | 'ATTEMPT_ATTACK'
   | 'FALL_BACK'
   | 'DEAD'
-  | 'GET_UP';
+  | 'GET_UP'
+  | 'LIFTING'
+  | 'STABBING'
+  | 'SALUTE';
 
 export type CharacterBoneName =
   | 'Hips'

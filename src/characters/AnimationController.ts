@@ -27,9 +27,19 @@ const ONE_SHOT_STATES = new Set<FighterState>([
   'FALL_BACK',
   'DEAD',
   'GET_UP',
+  'LIFTING',
+  'STABBING',
+  'SALUTE',
 ]);
 
-const CLAMP_STATES = new Set<FighterState>(['FALL_BACK', 'DEAD', 'ATTEMPT_ATTACK', 'SPANKED', 'LASER_EYES']);
+const CLAMP_STATES = new Set<FighterState>([
+  'FALL_BACK',
+  'DEAD',
+  'ATTEMPT_ATTACK',
+  'SPANKED',
+  'LASER_EYES',
+  'SALUTE',
+]);
 
 export type AnimationFinishedHandler = (finishedState: FighterState) => void;
 
@@ -201,6 +211,23 @@ export class AnimationController {
     } else if (!nextAction && resolvedState === 'GET_UP') {
       resolvedState = 'IDLE';
       nextAction = this.actions.get(resolvedState);
+    } else if (!nextAction && resolvedState === 'LIFTING') {
+      resolvedState = 'POSE';
+      nextAction = this.actions.get(resolvedState);
+      if (!nextAction) {
+        resolvedState = 'IDLE';
+        nextAction = this.actions.get(resolvedState);
+      }
+    } else if (!nextAction && resolvedState === 'STABBING') {
+      resolvedState = 'PUNCH';
+      nextAction = this.actions.get(resolvedState);
+    } else if (!nextAction && resolvedState === 'SALUTE') {
+      resolvedState = 'ENTRY';
+      nextAction = this.actions.get(resolvedState);
+      if (!nextAction) {
+        resolvedState = 'POSE';
+        nextAction = this.actions.get(resolvedState);
+      }
     }
 
     if (resolvedState === this.currentState && !restartIfSame) {
