@@ -633,12 +633,15 @@ export class GameController {
         finishedState === 'KISS' ||
         isHitVariant ||
         finishedState === 'BLUSH' ||
-        finishedState === 'GET_UP'
+        finishedState === 'GET_UP' ||
+        finishedState === 'LIFTING' ||
+        finishedState === 'STABBING' ||
+        finishedState === 'SALUTE'
       ) {
         if (this.blockingFighters.has(rig.id)) {
-          anim.transitionTo('BLOCK', 0.05);
+          anim.transitionTo('BLOCK', 0.14);
         } else {
-          anim.transitionTo('IDLE', 0.08);
+          anim.transitionTo('IDLE', 0.22);
         }
       }
     });
@@ -1153,10 +1156,10 @@ export class GameController {
         }
         const moveYaw = Math.atan2(moveInput.x, moveInput.y);
         this.physics.setLocomotionState(id, true, moveYaw);
-        anim.transitionTo('RUN', 0.1);
+        anim.transitionTo('RUN', 0.20);
       } else if (!isMoving && currentState === 'RUN') {
         this.physics.setLocomotionState(id, false, null);
-        anim.transitionTo('IDLE', 0.14);
+        anim.transitionTo('IDLE', 0.22);
       }
     }
   }

@@ -32,15 +32,6 @@ const ONE_SHOT_STATES = new Set<FighterState>([
   'SALUTE',
 ]);
 
-const CLAMP_STATES = new Set<FighterState>([
-  'FALL_BACK',
-  'DEAD',
-  'ATTEMPT_ATTACK',
-  'SPANKED',
-  'LASER_EYES',
-  'SALUTE',
-]);
-
 export type AnimationFinishedHandler = (finishedState: FighterState) => void;
 
 /**
@@ -125,7 +116,7 @@ export class AnimationController {
       action.setEffectiveTimeScale(speed);
       if (ONE_SHOT_STATES.has(stateKey)) {
         action.setLoop(reps > 1 ? THREE.LoopRepeat : THREE.LoopOnce, reps);
-        action.clampWhenFinished = CLAMP_STATES.has(stateKey);
+        action.clampWhenFinished = true;
       } else {
         action.setLoop(THREE.LoopRepeat, Infinity);
       }
@@ -237,19 +228,112 @@ export class AnimationController {
     const prevAction = this.actions.get(this.currentState);
     if (!nextAction) return;
 
-    nextAction.enabled = true;
+    const blendDuration = this.getTransitionDuration(
+      this.currentState,
+      resolvedState,
+      fadeDuration
+    );
+
     const speed = this.clipSpeeds.get(resolvedState) ?? 1;
+    nextAction.enabled = true;
+    nextAction.paused = false;
     nextAction.setEffectiveTimeScale(speed);
-    nextAction.setEffectiveWeight(1);
-    nextAction.reset();
+
+    if (prevAction !== nextAction || restartIfSame) {
+      nextAction.reset();
+    }
     nextAction.play();
 
     if (prevAction && prevAction !== nextAction) {
       prevAction.enabled = true;
-      prevAction.crossFadeTo(nextAction, fadeDuration, false);
+      prevAction.crossFadeTo(nextAction, blendDuration, false);
+
+      // Cleanly fade out any lingering enabled actions to eliminate hitching and ghosting
+      for (const [stateKey, action] of this.actions.entries()) {
+        if (stateKey !== resolvedState && stateKey !== this.currentState && action.enabled) {
+          action.fadeOut(blendDuration);
+        }
+      }
+    } else {
+      nextAction.setEffectiveWeight(1);
     }
 
     this.currentState = resolvedState;
+  }
+
+  /**
+   * Computes the biomechanically optimal cross-fade duration between states
+   * for fluid, realistic fighting game interpolation.
+   */
+  private getTransitionDuration(
+    fromState: FighterState,
+    toState: FighterState,
+    requestedDuration?: number
+  ): number {
+    // If caller explicitly requested a high-quality smooth duration, respect it
+    if (requestedDuration !== undefined && requestedDuration >= 0.15) {
+      return requestedDuration;
+    }
+
+    // Locomotion blend (IDLE <-> RUN)
+    if (
+      (fromState === 'IDLE' && toState === 'RUN') ||
+      (fromState === 'RUN' && toState === 'IDLE')
+    ) {
+      return 0.20;
+    }
+
+    // Smooth recovery back to IDLE from any action, attack, or hit
+    if (toState === 'IDLE') {
+      return 0.22;
+    }
+
+    // Combat strike startup (PUNCH, KICK, MUAY_THAI, STABBING, LIFTING)
+    if (
+      toState === 'PUNCH' ||
+      toState === 'KICK' ||
+      toState === 'MUAY_THAI' ||
+      toState === 'STABBING' ||
+      toState === 'LIFTING'
+    ) {
+      return 0.15;
+    }
+
+    // Kinetic hit flinches & blocks (snappy but smoothly blended, no teleporting bones)
+    if (
+      toState === 'HIT' ||
+      toState === 'HIT_HEAD' ||
+      toState === 'HIT_STOMACH' ||
+      toState === 'HIT_BIG' ||
+      toState === 'HIT_LEGS' ||
+      toState === 'HIT_CAR' ||
+      toState === 'BLOCK'
+    ) {
+      return 0.12;
+    }
+
+    // Poses, victory gestures, emotes, salute, get up
+    if (
+      toState === 'POSE' ||
+      toState === 'SALUTE' ||
+      toState === 'ENTRY' ||
+      toState === 'DANCE' ||
+      toState === 'CHAMP_POSE' ||
+      toState === 'GET_UP' ||
+      toState === 'LOUNGE' ||
+      toState === 'ADMIRE' ||
+      toState === 'KISS' ||
+      toState === 'BLUSH'
+    ) {
+      return 0.24;
+    }
+
+    // Knockdowns & death falls
+    if (toState === 'FALL_BACK' || toState === 'DEAD' || toState === 'SPANKED') {
+      return 0.18;
+    }
+
+    return 0.18;
   }
 
   public update(deltaSeconds: number): void {

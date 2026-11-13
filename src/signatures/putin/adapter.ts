@@ -99,7 +99,7 @@ export function runPutinSpecialAbility(
 
         // KGB Cold Blade Callbacks
         onTriggerLiftingAnimation: () => {
-          attackerAnim.transitionTo('LIFTING', 0.08, true);
+          attackerAnim.transitionTo('LIFTING', 0.20, true);
           ctx.sound.playSignatureCharge();
           ctx.setQuip(ctx.getDisplayName(attackerId), 'No diplomacy today... 🗡️');
         },
@@ -112,11 +112,11 @@ export function runPutinSpecialAbility(
           ctx.effects.spawnSignatureAura(spawnPos);
         },
         onTriggerStabbingAnimation: () => {
-          attackerAnim.transitionTo('STABBING', 0.06, true);
+          attackerAnim.transitionTo('STABBING', 0.18, true);
           ctx.sound.playWhoosh(1.0);
         },
         onKnifeStabImpact: (impactPos, damage) => {
-          targetAnim.transitionTo('HIT', 0.04, true);
+          targetAnim.transitionTo('HIT', 0.12, true);
           ctx.setTimeScale(CINEMATIC_FREEZE_TIME_SCALE);
           ctx.sound.playSignatureImpact();
           const hitPoint = impactPos.clone().setY(1.35);
@@ -134,14 +134,14 @@ export function runPutinSpecialAbility(
           ctx.setTimeScale(1.0);
           const isDead = ctx.getFighterHp(targetId) <= 0;
           const fallState = isDead && targetAnim.hasState('DEAD') ? 'DEAD' : 'FALL_BACK';
-          targetAnim.transitionTo(fallState, 0.04, true);
+          targetAnim.transitionTo(fallState, 0.18, true);
           ctx.physics.setKnockedDown(targetId, true);
           ctx.physics.applyDirectionalImpulse(targetId, attackerId, -4.8);
           ctx.effects.spawnDizzyStars(targetRig.headAnchor, 1.55);
           ctx.sound.playMatSlamAndDizzy();
         },
         onTriggerSaluteAnimation: () => {
-          attackerAnim.transitionTo('SALUTE', 0.08, true);
+          attackerAnim.transitionTo('SALUTE', 0.24, true);
         },
         onSaluteStart: () => {
           ctx.sound.playSignatureCharge();
