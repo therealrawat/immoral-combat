@@ -60,7 +60,7 @@ const chinuHash = chinuPassword
   : '';
 
 export default defineConfig({
-  assetsInclude: ['**/*.glb', '**/*.ogg'],
+  assetsInclude: ['**/*.glb', '**/*.ogg', '**/*.png'],
   build: {
     rollupOptions: {
       output: {

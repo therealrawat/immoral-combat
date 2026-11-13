@@ -33,7 +33,7 @@ export class SceneManager {
     const width = Math.max(1, canvas.clientWidth || window.innerWidth);
     const height = Math.max(1, canvas.clientHeight || window.innerHeight);
 
-    this.camera = new THREE.PerspectiveCamera(44, width / height, 0.1, 100);
+    this.camera = new THREE.PerspectiveCamera(44, width / height, 0.1, 220);
     this.camera.position.copy(this.baseCameraPos);
     this.camera.lookAt(this.baseLookAt);
 
@@ -293,6 +293,11 @@ export class SceneManager {
       .add(this.shakeOffset)
       .add(new THREE.Vector3(this.smoothParallax.x, this.smoothParallax.y, 0));
     this.camera.lookAt(this.currentLookAt);
+
+    if (this.scene.background instanceof THREE.Texture) {
+      this.scene.backgroundRotation.y += 0.00018;
+    }
+
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -300,8 +305,30 @@ export class SceneManager {
     this.renderer.render(customScene, customCamera);
   }
 
+  public setSkyboxTexture(
+    texture: THREE.Texture,
+    fogHex?: number,
+    fogNear = 45,
+    fogFar = 140
+  ): void {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    this.scene.background = texture;
+    if (fogHex !== undefined) {
+      this.scene.fog = new THREE.Fog(fogHex, fogNear, fogFar);
+    }
+  }
+
+  public clearSkybox(): void {
+    if (this.scene.background instanceof THREE.Texture) {
+      this.scene.background = new THREE.Color(0x9be2ff);
+    }
+  }
+
   public setAtmosphere(bgHex: number, fogHex: number, fogNear: number, fogFar: number): void {
-    this.scene.background = new THREE.Color(bgHex);
+    if (!(this.scene.background instanceof THREE.Texture)) {
+      this.scene.background = new THREE.Color(bgHex);
+    }
     this.scene.fog = new THREE.Fog(fogHex, fogNear, fogFar);
   }
 

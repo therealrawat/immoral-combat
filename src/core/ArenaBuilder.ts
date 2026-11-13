@@ -3,6 +3,7 @@ import { getStageModelUrl } from '../characters/ModelAssetRegistry';
 import { disposeObject3D } from '../utils/disposeThree';
 import { createManagedGLTFLoader, reportAssetByteProgress } from './AssetLoadingManager';
 import type { SceneManager } from './SceneManager';
+import { SkyboxManager, type SkyboxPreset } from './SkyboxManager';
 
 export const ARENA_HALF_WIDTH = 3.35;
 /** Alias preserved for combat boundary physics (`PhysicsCombatSystem`). */
@@ -16,6 +17,7 @@ export interface StagePreset {
   fogHex: number;
   fogNear: number;
   fogFar: number;
+  isOpenStage?: boolean;
 }
 
 const DEFAULT_STAGE_ATMOSPHERE = {
@@ -34,11 +36,13 @@ const STAGE_PRESETS: Record<string, StagePreset> = {
     fogHex: 0x090d16,
     fogNear: 20,
     fogFar: 56,
+    isOpenStage: true,
   },
   'stage-2': {
     displayName: 'Dojo Courtyard',
     scale: 1.0,
     anchorXZ: [6.5, 2.0],
+    isOpenStage: true,
     ...DEFAULT_STAGE_ATMOSPHERE,
   },
   'stage-3': {
@@ -49,6 +53,7 @@ const STAGE_PRESETS: Record<string, StagePreset> = {
     fogHex: 0xb9e6fe,
     fogNear: 24,
     fogFar: 60,
+    isOpenStage: true,
   },
 };
 
@@ -163,6 +168,7 @@ export function applyStageTransformAndGround(
  */
 export class StageManager {
   private readonly loader = createManagedGLTFLoader();
+  private readonly skyboxManager = new SkyboxManager();
   private currentStageRoot: THREE.Object3D | null = null;
   private shadowCatcher: THREE.Mesh | null = null;
   private activeStageId = '';
@@ -183,6 +189,18 @@ export class StageManager {
 
   public getActiveStageId(): string {
     return this.activeStageId;
+  }
+
+  public getSkyboxManager(): SkyboxManager {
+    return this.skyboxManager;
+  }
+
+  public async applyRandomSkybox(stageId?: string): Promise<SkyboxPreset | null> {
+    return this.skyboxManager.applyRandomSkybox(this.sceneManager, { stageId });
+  }
+
+  public async setSkybox(skyId: string): Promise<SkyboxPreset | null> {
+    return this.skyboxManager.applySkybox(skyId, this.sceneManager);
   }
 
   public isStageLoaded(stageId: string): boolean {
@@ -239,12 +257,18 @@ export class StageManager {
         this.clearCurrentStage();
 
         const preset = applyStageTransformAndGround(gltf.scene, normalizedId);
-        this.sceneManager.setAtmosphere(
-          preset.bgHex,
-          preset.fogHex,
-          preset.fogNear,
-          preset.fogFar
-        );
+        if (preset.isOpenStage !== false) {
+          void this.skyboxManager.applyRandomSkybox(this.sceneManager, {
+            stageId: normalizedId,
+          });
+        } else {
+          this.sceneManager.setAtmosphere(
+            preset.bgHex,
+            preset.fogHex,
+            preset.fogNear,
+            preset.fogFar
+          );
+        }
         this.sceneManager.scene.add(gltf.scene);
         this.currentStageRoot = gltf.scene;
         this.loadedStageId = normalizedId;
@@ -284,5 +308,6 @@ export class StageManager {
     this.inFlightLoads.clear();
     this.clearShadowCatcher();
     this.clearCurrentStage();
+    this.skyboxManager.dispose();
   }
 }

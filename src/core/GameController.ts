@@ -356,6 +356,7 @@ export class GameController {
       },
       onRematch: () => {
         this.sound.playClick();
+        void this.stageManager.applyRandomSkybox(this.activeStageId);
         this.gameManager.startMatch();
       },
       onHealPriyanshu: () => this.handleHealAction(),
@@ -818,6 +819,7 @@ export class GameController {
     }
 
     if (startNewMatch) {
+      void this.stageManager.applyRandomSkybox(stageId);
       this.gameManager.startMatch();
       if (this.selectedCharacter === 'chinu' && this.anims.get('chinu')?.hasState('ENTRY')) {
         this.cpuAi.reset(performance.now(), 1650);
