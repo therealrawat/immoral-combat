@@ -835,7 +835,13 @@ export class GameController {
     }
 
     if (startNewMatch) {
-      void this.stageManager.applyRandomSkybox(stageId);
+      await this.stageManager.applyRandomSkybox(stageId);
+      this.anims.get(leftId)?.transitionTo('IDLE', 0, true);
+      this.anims.get(rightId)?.transitionTo('IDLE', 0, true);
+      for (let i = 0; i < 6; i++) {
+        this.anims.get(leftId)?.update(0.016);
+        this.anims.get(rightId)?.update(0.016);
+      }
       this.gameManager.startMatch();
       if (this.selectedCharacter === 'chinu' && this.anims.get('chinu')?.hasState('ENTRY')) {
         this.cpuAi.reset(performance.now(), 1650);

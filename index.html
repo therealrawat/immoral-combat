@@ -373,7 +373,8 @@
               <h3 class="controls-guide-section-title">MOVEMENT &amp; STRIKES</h3>
               <ul class="controls-guide-list">
                 <li><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> / <kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd>
-                  <kbd>→</kbd><span>Move in Arena (Forward, Backward, Left, Right)</span></li>
+                  <kbd>→</kbd><span>Move in Arena (Forward, Backward, Left, Right)</span>
+                </li>
                 <li><kbd>SPACE</kbd><span>Jump Up (Athletic Jump, Air Strikes &amp; Flying Kicks)</span></li>
                 <li><kbd>SHIFT</kbd> / <kbd>S</kbd><span>Crouch Down (Ducks High Blows, Low Groin Kicks &amp;
                     Elbows)</span></li>
@@ -441,42 +442,32 @@
     <!-- First-Screen Initial Setup Loader -->
     <div class="loader-overlay loader-overlay--initial" id="initial-loader" role="status" aria-live="polite"
       aria-label="Loading Immoral Combat initial setup">
-      <div class="loader-card">
-        <div class="loader-emblem">IMMORAL COMBAT</div>
-        <div class="loader-subtitle" id="initial-loader-title">INITIALIZING ARENA SHOWCASE</div>
-        <div class="loader-progress-track" aria-hidden="true">
-          <div class="loader-progress-fill" id="initial-loader-fill" style="width: 12%"></div>
+          <div class="simple-loader">
+            <div class="simple-loader-track" aria-hidden="true">
+              <div class="simple-loader-fill" id="initial-loader-fill" style="width: 12%"></div>
+            </div>
+            <div class="simple-loader-status" id="initial-loader-status">Preloading roster avatars &amp; initial
+              setup...</div>
+            <span class="hidden" id="initial-loader-title"></span>
+            <span class="hidden" id="initial-loader-percent"></span>
+          </div>
         </div>
-        <div class="loader-meta-row">
-          <span class="loader-status-text" id="initial-loader-status">Preloading roster avatars &amp; initial
-            setup...</span>
-          <span class="loader-percent" id="initial-loader-percent">12%</span>
-        </div>
-        <div class="loader-hint">Roster avatars preload upfront — combat moves &amp; stages load on demand</div>
-      </div>
-    </div>
 
-    <!-- On-Demand Match / Stage Loader (Selected Fighters & Stage Only) -->
-    <div class="loader-overlay loader-overlay--match hidden" id="match-loader" role="status" aria-live="polite"
-      aria-label="Loading selected fighters and stage">
-      <div class="loader-card loader-card--match">
-        <div class="loader-badge-row">
-          <span class="loader-tag">ON-DEMAND ARENA STREAM</span>
-        </div>
-        <div class="loader-matchup-title" id="match-loader-title">PREPARING MATCH</div>
-        <div class="loader-progress-track loader-progress-track--match" aria-hidden="true">
-          <div class="loader-progress-fill loader-progress-fill--match" id="match-loader-fill" style="width: 0%"></div>
-        </div>
-        <div class="loader-meta-row">
-          <span class="loader-status-text" id="match-loader-status">Streaming selected fighter rigs &amp;
-            stage...</span>
-          <span class="loader-percent" id="match-loader-percent">0%</span>
-        </div>
-      </div>
-    </div>
-  </div>
+        <!-- On-Demand Match / Stage Loader (Selected Fighters & Stage Only) -->
+        <div class="loader-overlay loader-overlay--match hidden" id="match-loader" role="status" aria-live="polite"
+          aria-label="Loading selected fighters and stage">
+              <div class="simple-loader">
+                <div class="simple-loader-track" aria-hidden="true">
+                  <div class="simple-loader-fill" id="match-loader-fill" style="width: 0%"></div>
+                </div>
+                <div class="simple-loader-status" id="match-loader-status">Loading Character Data...</div>
+                <span class="hidden" id="match-loader-title"></span>
+                <span class="hidden" id="match-loader-percent"></span>
+              </div>
+            </div>
+          </div>
 
-  <script type="module" src="/src/main.ts"></script>
+          <script type="module" src="/src/main.ts"></script>
 </body>
 
 </html>

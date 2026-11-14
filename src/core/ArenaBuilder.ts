@@ -21,8 +21,8 @@ export interface StagePreset {
 }
 
 const DEFAULT_STAGE_ATMOSPHERE = {
-  bgHex: 0x9be2ff,
-  fogHex: 0x9be2ff,
+  bgHex: 0x05070e,
+  fogHex: 0x05070e,
   fogNear: 22,
   fogFar: 52,
 } as const;

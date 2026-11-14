@@ -27,8 +27,8 @@ export class SceneManager {
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x9be2ff);
-    this.scene.fog = new THREE.Fog(0x9be2ff, 16, 36);
+    this.scene.background = new THREE.Color(0x05070e);
+    this.scene.fog = new THREE.Fog(0x05070e, 16, 36);
 
     const width = Math.max(1, canvas.clientWidth || window.innerWidth);
     const height = Math.max(1, canvas.clientHeight || window.innerHeight);
@@ -321,7 +321,7 @@ export class SceneManager {
 
   public clearSkybox(): void {
     if (this.scene.background instanceof THREE.Texture) {
-      this.scene.background = new THREE.Color(0x9be2ff);
+      this.scene.background = new THREE.Color(0x05070e);
     }
   }
 
