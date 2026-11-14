@@ -76,7 +76,7 @@ export function runModijiSpecialAbility(
         onSonicBoomSpawn: (origin) => {
           ctx.sound.playSignatureCharge();
           ctx.effects.spawnSignatureAura(origin);
-          ctx.setQuip(ctx.getDisplayName(attackerId), 'MITRON!! SONIC BOOM!! 🔊🔥');
+          ctx.setQuip(ctx.getDisplayName(attackerId), 'MITRON!! PARMANU BOMB!! 🔥');
           ctx.sceneManager.triggerShake(0.24, 0.45);
         },
         onSonicBoomImpact: (_origin, opponentHit, _dist, damage) => {
@@ -102,7 +102,7 @@ export function runModijiSpecialAbility(
         },
         onChaiBreakStart: () => {
           ctx.sound.playHeal();
-          ctx.setQuip(ctx.getDisplayName(attackerId), 'CHAI BREAK!! +20% ENERGY ☕✨');
+          ctx.setQuip(ctx.getDisplayName(attackerId), 'CHAI PEELO MITROOOON!! +20% ENERGY ☕');
           const healPos = attackerRig.root.position.clone().setY(1.65);
           const result = ctx.restoreFighterHpPercent?.(attackerId, 0.2);
           ctx.effects.spawnHealBurst?.(healPos, result?.restored ?? 20, 'CHAI BUFF! ☕');

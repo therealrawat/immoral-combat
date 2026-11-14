@@ -4,6 +4,12 @@
  */
 
 import { ASSET_CDN } from '../config/cdn';
+import gsap from 'gsap';
+
+export type MusicTrack = 'game' | 'stage' | 'none';
+
+const GAME_MUSIC_URL = `${ASSET_CDN}/game-music/game_music.ogg`;
+const STAGE_MUSIC_URL = `${ASSET_CDN}/game-music/stage_music.ogg`;
 
 const SOUND_FILENAMES: readonly string[] = [
   '1', '10', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -120,6 +126,14 @@ export class SoundManager {
   private readonly pendingLoads = new Map<string, Promise<AudioBuffer | null>>();
   private muted = false;
 
+  private gameMusicAudio: HTMLAudioElement | null = null;
+  private stageMusicAudio: HTMLAudioElement | null = null;
+  private currentMusicTrack: MusicTrack = 'none';
+  private targetMusicTrack: MusicTrack = 'none';
+  private musicVolume = 0.42;
+  private gameFadeTween?: gsap.core.Tween;
+  private stageFadeTween?: gsap.core.Tween;
+
   public isMuted(): boolean {
     return this.muted;
   }
@@ -128,6 +142,12 @@ export class SoundManager {
     this.muted = muted;
     if (this.masterGainNode && this.ctx) {
       this.masterGainNode.gain.setValueAtTime(muted ? 0 : 1, this.ctx.currentTime);
+    }
+    if (this.gameMusicAudio) {
+      this.gameMusicAudio.muted = muted;
+    }
+    if (this.stageMusicAudio) {
+      this.stageMusicAudio.muted = muted;
     }
   }
 
@@ -140,7 +160,8 @@ export class SoundManager {
   }
 
   /**
-   * Unlocks Web Audio on the first user gesture (click/keydown) and pre-warms essential voices.
+   * Unlocks Web Audio on the first user gesture (click/keydown), pre-warms essential voices,
+   * and starts/resumes background music if previously paused by autoplay restrictions.
    */
   public unlock(): void {
     const ctx = this.ensureContext();
@@ -150,6 +171,144 @@ export class SoundManager {
       });
     } else if (ctx) {
       void this.preloadEssentialSounds();
+    }
+
+    if (this.targetMusicTrack !== 'none') {
+      const el = this.getOrCreateMusicElement(this.targetMusicTrack);
+      if (el.paused) {
+        el.muted = this.muted;
+        void el.play().catch(() => { });
+        gsap.to(el, { volume: this.musicVolume, duration: 0.6 });
+      }
+    }
+  }
+
+  private getOrCreateMusicElement(track: 'game' | 'stage'): HTMLAudioElement {
+    if (track === 'game') {
+      if (!this.gameMusicAudio) {
+        this.gameMusicAudio = new Audio(GAME_MUSIC_URL);
+        this.gameMusicAudio.loop = true;
+        this.gameMusicAudio.preload = 'auto';
+        this.gameMusicAudio.muted = this.muted;
+        this.gameMusicAudio.volume = 0;
+      }
+      return this.gameMusicAudio;
+    } else {
+      if (!this.stageMusicAudio) {
+        this.stageMusicAudio = new Audio(STAGE_MUSIC_URL);
+        this.stageMusicAudio.loop = true;
+        this.stageMusicAudio.preload = 'auto';
+        this.stageMusicAudio.muted = this.muted;
+        this.stageMusicAudio.volume = 0;
+      }
+      return this.stageMusicAudio;
+    }
+  }
+
+  /**
+   * Plays background music with smooth crossfading:
+   * - 'game': Game music (Home screen / Character Select, Pause menu, Post Win/Lose)
+   * - 'stage': Stage music (Active fight scene in the arena)
+   * - 'none': Fades out all music
+   */
+  public playMusic(track: MusicTrack, options: { resetPosition?: boolean } = {}): void {
+    this.targetMusicTrack = track;
+    if (track === 'none') {
+      this.stopMusic();
+      return;
+    }
+
+    const { resetPosition = false } = options;
+    const isGame = track === 'game';
+    const activeEl = this.getOrCreateMusicElement(track);
+    const otherTrack: 'game' | 'stage' = isGame ? 'stage' : 'game';
+    const otherEl = otherTrack === 'game' ? this.gameMusicAudio : this.stageMusicAudio;
+
+    if (resetPosition) {
+      activeEl.currentTime = 0;
+    }
+
+    activeEl.muted = this.muted;
+
+    // Smoothly fade out the other track if it is currently playing
+    if (otherEl && !otherEl.paused) {
+      const otherTweenKey = isGame ? 'stageFadeTween' : 'gameFadeTween';
+      this[otherTweenKey]?.kill();
+      this[otherTweenKey] = gsap.to(otherEl, {
+        volume: 0,
+        duration: 0.5,
+        ease: 'power1.out',
+        onComplete: () => {
+          otherEl.pause();
+        },
+      });
+    }
+
+    // Smoothly fade in the target track
+    const activeTweenKey = isGame ? 'gameFadeTween' : 'stageFadeTween';
+    this[activeTweenKey]?.kill();
+
+    if (activeEl.paused) {
+      activeEl.volume = 0;
+      const playPromise = activeEl.play();
+      if (playPromise) {
+        playPromise.catch((err) => {
+          console.debug('[SoundManager] Autoplay waiting for user gesture:', err);
+        });
+      }
+    }
+
+    this[activeTweenKey] = gsap.to(activeEl, {
+      volume: this.musicVolume,
+      duration: 0.7,
+      ease: 'power1.inOut',
+    });
+
+    this.currentMusicTrack = track;
+  }
+
+  /**
+   * Smoothly fades out and stops all playing background music.
+   */
+  public stopMusic(fadeDuration = 0.6): void {
+    this.targetMusicTrack = 'none';
+    this.currentMusicTrack = 'none';
+
+    if (this.gameMusicAudio && !this.gameMusicAudio.paused) {
+      this.gameFadeTween?.kill();
+      this.gameFadeTween = gsap.to(this.gameMusicAudio, {
+        volume: 0,
+        duration: fadeDuration,
+        ease: 'power1.out',
+        onComplete: () => {
+          this.gameMusicAudio?.pause();
+        },
+      });
+    }
+
+    if (this.stageMusicAudio && !this.stageMusicAudio.paused) {
+      this.stageFadeTween?.kill();
+      this.stageFadeTween = gsap.to(this.stageMusicAudio, {
+        volume: 0,
+        duration: fadeDuration,
+        ease: 'power1.out',
+        onComplete: () => {
+          this.stageMusicAudio?.pause();
+        },
+      });
+    }
+  }
+
+  public getCurrentMusicTrack(): MusicTrack {
+    return this.currentMusicTrack;
+  }
+
+  public setMusicVolume(volume: number): void {
+    this.musicVolume = Math.max(0, Math.min(1, volume));
+    if (this.currentMusicTrack === 'game' && this.gameMusicAudio) {
+      this.gameMusicAudio.volume = this.musicVolume;
+    } else if (this.currentMusicTrack === 'stage' && this.stageMusicAudio) {
+      this.stageMusicAudio.volume = this.musicVolume;
     }
   }
 

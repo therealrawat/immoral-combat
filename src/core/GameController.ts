@@ -330,10 +330,12 @@ export class GameController {
       onPauseToggled: (paused) => {
         if (paused) {
           this.sound.playClick();
+          this.sound.playMusic('game');
           this.gameManager.pause();
         } else {
           this.sound.playClick();
           if (!this.ui.isModalOpen() && !this.ui.isControlsGuideOpen()) {
+            this.sound.playMusic('stage');
             this.gameManager.resume();
           }
         }
@@ -341,6 +343,7 @@ export class GameController {
       onQuitToSelect: () => {
         this.pendingMatchRestartAfterModalClose = true;
         this.sound.playClick();
+        this.sound.playMusic('game');
         this.gameManager.hideAnnouncement(true);
         this.sceneManager.resetCamera(true);
         this.gameManager.pause();
@@ -348,6 +351,7 @@ export class GameController {
       },
       onRematch: () => {
         this.sound.playClick();
+        this.sound.playMusic('stage', { resetPosition: true });
         this.gameManager.hideAnnouncement(true);
         this.sceneManager.resetCamera(true);
         void this.stageManager.applyRandomSkybox(this.activeStageId);
@@ -432,6 +436,9 @@ export class GameController {
               // 2. Pan and heroic close-up on the celebrating winner
               const isMatchOver =
                 (result.wins[result.winner] ?? 0) >= this.gameManager.getRoundsToWin();
+              if (isMatchOver) {
+                this.sound.playMusic('game');
+              }
               if (defeatedRig && winnerRig) {
                 const defPos = defeatedRig.root.position.clone();
                 const winPos = winnerRig.root.position.clone();
@@ -495,6 +502,7 @@ export class GameController {
           this.physics.setMoveInput(this.leftFighterId, 0, 0);
           this.physics.setMoveInput(this.rightFighterId, 0, 0);
           this.syncHUD();
+          this.sound.playMusic('game');
           if (winner === 'draw') {
             this.sound.playMatchEndVoice(false, true);
           } else {
@@ -579,6 +587,7 @@ export class GameController {
     if (this.disposed) return;
     this.ui.setInitialLoaderProgress(100, 'Fighter avatars & showcase ready!');
     this.ui.hideInitialLoader();
+    this.sound.playMusic('game');
   }
 
   private registerCombatRig(id: CharacterId, visible: boolean, facing: 1 | -1): void {
@@ -847,6 +856,7 @@ export class GameController {
     }
 
     if (startNewMatch) {
+      this.sound.playMusic('stage', { resetPosition: true });
       await this.stageManager.applyRandomSkybox(stageId);
       this.anims.get(leftId)?.transitionTo('IDLE', 0, true);
       this.anims.get(rightId)?.transitionTo('IDLE', 0, true);
@@ -865,6 +875,7 @@ export class GameController {
         this.triggerChinuEntryAction(true);
       }
     } else {
+      this.sound.playMusic('stage');
       this.gameManager.resume();
     }
   }
@@ -3182,6 +3193,7 @@ export class GameController {
     this.stageManager.dispose();
     this.selectStage.dispose();
     this.ui.dispose();
+    this.sound.stopMusic(0.1);
     this.effects.dispose();
     this.sceneManager.dispose();
   }

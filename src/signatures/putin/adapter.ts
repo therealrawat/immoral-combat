@@ -147,7 +147,7 @@ export function runPutinSpecialAbility(
         },
         onSaluteStart: () => {
           ctx.sound.playSignatureCharge();
-          ctx.setQuip(ctx.getDisplayName(attackerId), 'Mission accomplished. До свидания. 🎖️');
+          ctx.setQuip(ctx.getDisplayName(attackerId), 'Mission accomplished. До свидания.');
         },
 
         // Legacy / Other Move Callbacks
