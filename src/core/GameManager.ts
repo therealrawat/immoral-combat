@@ -5,7 +5,7 @@ export { ASSET_CDN, getCdnAssetUrl } from '../config/cdn';
 
 export type GameState = 'INIT' | 'INTRO' | 'FIGHTING' | 'ROUND_END' | 'MATCH_OVER';
 export type PlayerSlot = 'player1' | 'player2';
-export type AnnouncementVariant = 'round' | 'ready' | 'fight' | 'ko' | 'time-over' | 'win';
+export type AnnouncementVariant = 'round' | 'ready' | 'fight' | 'ko' | 'time-over' | 'win' | 'lose';
 
 export interface FighterParticipantConfig {
   id?: string;
@@ -652,15 +652,18 @@ export class GameManager {
     }, this.koResetDelayMs);
   }
 
+  public getRoundsToWin(): number {
+    return this.roundsToWin;
+  }
+
   private finishMatch(winner: PlayerSlot, wins: Record<PlayerSlot, number>): void {
     this.stopTimer();
     this.setState('MATCH_OVER');
     this.setControlsLocked(true);
 
-    const slotLabel = winner === 'player1' ? 'PLAYER 1 WINS' : 'PLAYER 2 WINS';
-    const fighterName = this.players[winner].config.name.toUpperCase();
-    this.showAnnouncement(slotLabel, `${fighterName} TAKES THE MATCH (${wins.player1} - ${wins.player2})`, 'win');
-    this.hud.rematchButton?.classList.remove('hidden');
+    const isP1 = winner === 'player1';
+    const mainTitle = isP1 ? 'YOU WIN' : 'YOU LOSE';
+    this.showAnnouncement(mainTitle, '', isP1 ? 'win' : 'lose');
     this.callbacks.onMatchOver?.(winner, wins);
   }
 
@@ -893,32 +896,57 @@ export class GameManager {
       this.hud.announcementTitle.textContent = title;
     }
     if (this.hud.announcementSub) {
-      this.hud.announcementSub.textContent = subtitle;
+      if (!subtitle) {
+        this.hud.announcementSub.classList.add('hidden');
+        this.hud.announcementSub.textContent = '';
+      } else {
+        this.hud.announcementSub.classList.remove('hidden');
+        this.hud.announcementSub.textContent = subtitle;
+      }
     }
 
     container.className = `match-announcement match-announcement--${variant}`;
-    if (variant !== 'win') {
+    const actions = document.getElementById('match-announcement-actions');
+    const isEndMatch = variant === 'win' || variant === 'lose';
+    if (!isEndMatch) {
       this.hud.rematchButton?.classList.add('hidden');
+      actions?.classList.add('hidden');
+    } else {
+      this.hud.rematchButton?.classList.remove('hidden');
+      actions?.classList.remove('hidden');
     }
 
     gsap.killTweensOf(container);
     this.announcementTween = gsap.fromTo(
       container,
-      { scale: variant === 'ko' ? 2.1 : 1.5, opacity: 0 },
+      {
+        scale: variant === 'ko' ? 2.1 : isEndMatch ? 2.4 : 1.5,
+        opacity: 0,
+      },
       {
         scale: 1,
         opacity: 1,
-        duration: variant === 'ko' ? 0.34 : 0.28,
-        ease: variant === 'ko' ? 'power4.out' : 'back.out(1.7)',
+        duration: isEndMatch ? 0.42 : variant === 'ko' ? 0.34 : 0.28,
+        ease: isEndMatch ? 'power4.out' : variant === 'ko' ? 'power4.out' : 'back.out(1.7)',
       }
     );
   }
 
-  private hideAnnouncement(): void {
+  public hideAnnouncement(instant = false): void {
     const container = this.hud.announcementContainer;
     if (!container) return;
 
     gsap.killTweensOf(container);
+    const actions = document.getElementById('match-announcement-actions');
+    actions?.classList.add('hidden');
+    this.hud.rematchButton?.classList.add('hidden');
+
+    if (instant) {
+      container.className = 'match-announcement hidden';
+      container.style.opacity = '0';
+      return;
+    }
+
     this.announcementTween = gsap.to(container, {
       opacity: 0,
       scale: 0.92,
@@ -926,7 +954,6 @@ export class GameManager {
       ease: 'power2.in',
       onComplete: () => {
         container.classList.add('hidden');
-        this.hud.rematchButton?.classList.add('hidden');
       },
     });
   }

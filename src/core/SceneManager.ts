@@ -376,7 +376,8 @@ export class SceneManager {
   public triggerKOCinematicSequence(
     defeatedPos: THREE.Vector3,
     winnerPos: THREE.Vector3,
-    onComplete?: () => void
+    onComplete?: () => void,
+    isMatchOver = false
   ): gsap.core.Timeline {
     this.koCinematicTimeline?.kill();
     this.greetingTimeline?.kill();
@@ -448,26 +449,36 @@ export class SceneManager {
       '<'
     );
 
-    // Step 3: Hold on celebrating winner, then glide smoothly back to arena base
-    tl.to(this.zoomTargetPos, {
-      x: this.baseCameraPos.x,
-      y: this.baseCameraPos.y,
-      z: this.baseCameraPos.z,
-      delay: 1.6,
-      duration: 0.65,
-      ease: 'power2.inOut',
-    });
-    tl.to(
-      this.currentLookAt,
-      {
-        x: this.baseLookAt.x,
-        y: this.baseLookAt.y,
-        z: this.baseLookAt.z,
+    if (isMatchOver) {
+      // In match-over, hold directly on celebrating winner with slow, epic cinematic drift
+      tl.to(this.zoomTargetPos, {
+        y: winCamPos.y + 0.16,
+        z: winCamPos.z + 0.35,
+        duration: 8.0,
+        ease: 'sine.out',
+      });
+    } else {
+      // Normal round KO: Hold on celebrating winner, then glide smoothly back to arena base
+      tl.to(this.zoomTargetPos, {
+        x: this.baseCameraPos.x,
+        y: this.baseCameraPos.y,
+        z: this.baseCameraPos.z,
+        delay: 1.6,
         duration: 0.65,
         ease: 'power2.inOut',
-      },
-      '<'
-    );
+      });
+      tl.to(
+        this.currentLookAt,
+        {
+          x: this.baseLookAt.x,
+          y: this.baseLookAt.y,
+          z: this.baseLookAt.z,
+          duration: 0.65,
+          ease: 'power2.inOut',
+        },
+        '<'
+      );
+    }
 
     this.koCinematicTimeline = tl;
     return tl;

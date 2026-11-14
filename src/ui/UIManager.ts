@@ -257,6 +257,7 @@ export class UIManager {
   private readonly koTitle = document.getElementById('ko-title')!;
   private readonly koSub = document.getElementById('ko-sub')!;
   private readonly btnMatchRematch = document.getElementById('btn-match-rematch') as HTMLButtonElement | null;
+  private readonly btnMatchQuit = document.getElementById('btn-match-quit') as HTMLButtonElement | null;
   private readonly p1SignatureLabel = document.getElementById('hud-p1-signature-label');
   private readonly p2SignatureLabel = document.getElementById('hud-p2-signature-label');
   private readonly p1SignatureBox = document.getElementById('hud-p1-signature-box');
@@ -539,6 +540,11 @@ export class UIManager {
     this.btnMatchRematch?.addEventListener('click', () => {
       if (this.btnMatchRematch) unlockAndBlur(this.btnMatchRematch);
       this.handlers.onRematch?.();
+    });
+
+    this.btnMatchQuit?.addEventListener('click', () => {
+      if (this.btnMatchQuit) unlockAndBlur(this.btnMatchQuit);
+      this.handlers.onQuitToSelect?.();
     });
 
     this.canvas.addEventListener('pointerdown', (event) => {
@@ -1351,6 +1357,16 @@ export class UIManager {
       return;
     }
 
+    if (
+      event.code === 'Escape' &&
+      this.btnMatchQuit &&
+      !this.btnMatchQuit.classList.contains('hidden')
+    ) {
+      event.preventDefault();
+      this.handlers.onQuitToSelect?.();
+      return;
+    }
+
     if (event.code === 'KeyB') {
       event.preventDefault();
       this.handlers.onBlockAction?.(true);
@@ -1473,6 +1489,14 @@ export class UIManager {
     this.resetTouchJoystick();
 
     if (open) {
+      const matchAnnouncement = document.getElementById('match-announcement');
+      if (matchAnnouncement) {
+        matchAnnouncement.className = 'match-announcement hidden';
+      }
+      const matchActions = document.getElementById('match-announcement-actions');
+      if (matchActions) {
+        matchActions.classList.add('hidden');
+      }
       this.setPauseMenuOpen(false);
       const defaults = getDefaultMatchup();
       this.selectP1 = canSelectCharacter(this.lastKnownPlayer)

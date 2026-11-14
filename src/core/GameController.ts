@@ -368,11 +368,14 @@ export class GameController {
       onQuitToSelect: () => {
         this.pendingMatchRestartAfterModalClose = true;
         this.sound.playClick();
+        this.gameManager.hideAnnouncement(true);
         this.sceneManager.resetCamera(true);
         this.gameManager.pause();
+        this.ui.setModalOpen(true);
       },
       onRematch: () => {
         this.sound.playClick();
+        this.gameManager.hideAnnouncement(true);
         this.sceneManager.resetCamera(true);
         void this.stageManager.applyRandomSkybox(this.activeStageId);
         this.gameManager.startMatch();
@@ -454,13 +457,20 @@ export class GameController {
               // Cinematic KO camera zoom sequence:
               // 1. Zoom in on defeated player as they hit the canvas in slow-motion
               // 2. Pan and heroic close-up on the celebrating winner
+              const isMatchOver =
+                (result.wins[result.winner] ?? 0) >= this.gameManager.getRoundsToWin();
               if (defeatedRig && winnerRig) {
                 const defPos = defeatedRig.root.position.clone();
                 const winPos = winnerRig.root.position.clone();
                 this.isCinematicActive = true;
-                this.sceneManager.triggerKOCinematicSequence(defPos, winPos, () => {
-                  this.isCinematicActive = false;
-                });
+                this.sceneManager.triggerKOCinematicSequence(
+                  defPos,
+                  winPos,
+                  () => {
+                    this.isCinematicActive = false;
+                  },
+                  isMatchOver
+                );
               }
 
               if (winnerAnim && !this.physics.isKnockedDown(winnerId)) {
