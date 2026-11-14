@@ -487,11 +487,15 @@ export class GameController {
         },
         onRoundReset: () => {
           this.isCinematicActive = false;
-          this.sceneManager.resetCamera(false);
           this.clearTransientDisposables();
           this.aggressionHits.clear();
           this.effects.clearBloodDecals();
           this.physics.setActivePair(this.leftFighterId, this.rightFighterId, true);
+          const leftRig = this.rigs.get(this.leftFighterId);
+          const rightRig = this.rigs.get(this.rightFighterId);
+          if (leftRig && rightRig) {
+            this.sceneManager.setupGreetingCamera(leftRig.root.position, rightRig.root.position);
+          }
           this.physics.setKnockedDown(this.leftFighterId, false);
           this.physics.setKnockedDown(this.rightFighterId, false);
           this.physics.setMovementPaused(this.leftFighterId, false);
@@ -866,6 +870,11 @@ export class GameController {
       for (let i = 0; i < 6; i++) {
         this.anims.get(leftId)?.update(0.016);
         this.anims.get(rightId)?.update(0.016);
+      }
+      const leftRig = this.rigs.get(leftId);
+      const rightRig = this.rigs.get(rightId);
+      if (leftRig && rightRig) {
+        this.sceneManager.setupGreetingCamera(leftRig.root.position, rightRig.root.position);
       }
       this.gameManager.startMatch();
       if (this.selectedCharacter === 'chinu' && this.anims.get('chinu')?.hasState('ENTRY')) {
@@ -2485,8 +2494,8 @@ export class GameController {
           ? 'BOW_INFORMAL'
           : 'IDLE';
 
-    // Camera two-shot framing both fighters bowing toward each other
-    this.sceneManager.triggerGreetingCinematic(leftRig.root.position, rightRig.root.position, 1.95);
+    // Camera starts framed in medium two-shot covering both bowing fighters, then zooms out as FIGHT! is called
+    this.sceneManager.triggerGreetingCinematic(leftRig.root.position, rightRig.root.position, 1.85, 0.95);
 
     // Play greeting bow animations
     leftAnim.transitionTo(leftGreet, 0.18, true);
