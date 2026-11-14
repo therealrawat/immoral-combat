@@ -219,6 +219,8 @@ export class GameController {
   private stressReliefPercent = 0;
   private targetQuip = '';
   private targetQuipSpeaker = FIGHTER_META[this.initialDefaults.opponent].displayName;
+  private targetQuipSide: 'left' | 'right' = 'right';
+  private targetQuipId = 0;
   private lastPlayerQuipAt = 0;
   private quipIndex = 0;
   private isCinematicActive = false;
@@ -1537,8 +1539,8 @@ export class GameController {
         this.quipIndex += 1;
         return current;
       },
-      setQuip: (speaker, text, fromPlayerAction) =>
-        this.setQuip(speaker, text, fromPlayerAction),
+      setQuip: (speaker, text, fromPlayerAction, side) =>
+        this.setQuip(speaker, text, fromPlayerAction, side),
       recordHitQuip: (defenderId) => this.recordHitQuip(defenderId),
       isCinematicActive: () => this.isCinematicActive,
       setCinematicActive: (active) => {
@@ -1650,12 +1652,24 @@ export class GameController {
     return isKick ? 190 : 150;
   }
 
-  private setQuip(speaker: string, text: string, fromPlayerAction = true): void {
+  private setQuip(
+    speaker: string,
+    text: string,
+    fromPlayerAction = true,
+    side?: 'left' | 'right'
+  ): void {
     this.targetQuipSpeaker = speaker;
     this.targetQuip = text;
+    this.targetQuipId += 1;
+    this.targetQuipSide =
+      side ??
+      (speaker === FIGHTER_META[this.leftFighterId].displayName
+        ? 'left'
+        : 'right');
     if (fromPlayerAction) {
       this.lastPlayerQuipAt = performance.now();
     }
+    this.syncHUD();
   }
 
   private canShowCpuQuip(): boolean {
@@ -3148,6 +3162,8 @@ export class GameController {
       stressReliefPercent: this.stressReliefPercent,
       targetQuip: this.targetQuip,
       targetQuipSpeaker: this.targetQuipSpeaker,
+      targetQuipSide: this.targetQuipSide,
+      targetQuipId: this.targetQuipId,
       isMuted: this.sound.isMuted(),
       isCounterSequenceActive: this.isCinematicActive,
       isModalOpen: this.ui.isModalOpen(),

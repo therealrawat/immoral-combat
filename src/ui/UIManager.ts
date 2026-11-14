@@ -258,6 +258,15 @@ export class UIManager {
   private readonly koSub = document.getElementById('ko-sub')!;
   private readonly btnMatchRematch = document.getElementById('btn-match-rematch') as HTMLButtonElement | null;
   private readonly btnMatchQuit = document.getElementById('btn-match-quit') as HTMLButtonElement | null;
+  private readonly quipBubbleLeft = document.getElementById('quip-bubble-left');
+  private readonly quipSpeakerLeft = document.getElementById('quip-speaker-left');
+  private readonly quipTextLeft = document.getElementById('quip-text-left');
+  private readonly quipBubbleRight = document.getElementById('quip-bubble-right');
+  private readonly quipSpeakerRight = document.getElementById('quip-speaker-right');
+  private readonly quipTextRight = document.getElementById('quip-text-right');
+  private quipLeftTimer: number | null = null;
+  private quipRightTimer: number | null = null;
+  private lastQuipId = 0;
   private readonly p1SignatureLabel = document.getElementById('hud-p1-signature-label');
   private readonly p2SignatureLabel = document.getElementById('hud-p2-signature-label');
   private readonly p1SignatureBox = document.getElementById('hud-p1-signature-box');
@@ -1641,30 +1650,72 @@ export class UIManager {
 
     this.btnSoundToggle.textContent = state.isMuted ? '🔇 MUTED' : '🔊 SFX ON';
 
-    if (state.targetQuip && state.targetQuip !== this.lastQuip) {
+    const hasNewQuip =
+      Boolean(state.targetQuip) &&
+      (state.targetQuipId !== undefined
+        ? state.targetQuipId !== this.lastQuipId
+        : state.targetQuip !== this.lastQuip);
+    if (hasNewQuip) {
       this.lastQuip = state.targetQuip;
-      this.showQuip(state.targetQuipSpeaker, state.targetQuip);
+      this.lastQuipId = state.targetQuipId ?? 0;
+      this.showQuip(state.targetQuipSpeaker, state.targetQuip, state.targetQuipSide ?? 'left');
     }
   }
 
-  private showQuip(speaker: string, text: string): void {
-    this.quipBubble.textContent = `${speaker}: "${text}"`;
-    this.quipBubble.classList.remove('hidden');
-    gsap.killTweensOf(this.quipBubble);
+  private showQuip(speaker: string, text: string, side: 'left' | 'right' = 'left'): void {
+    const isLeft = side === 'left';
+    const bubble = isLeft ? this.quipBubbleLeft : this.quipBubbleRight;
+    const speakerEl = isLeft ? this.quipSpeakerLeft : this.quipSpeakerRight;
+    const textEl = isLeft ? this.quipTextLeft : this.quipTextRight;
+
+    if (!bubble || !speakerEl || !textEl) {
+      if (this.quipBubble) {
+        this.quipBubble.textContent = `${speaker}: "${text}"`;
+        this.quipBubble.classList.remove('hidden');
+        gsap.killTweensOf(this.quipBubble);
+        gsap.fromTo(
+          this.quipBubble,
+          { scale: 0.75, opacity: 0, y: -6 },
+          { scale: 1, opacity: 1, y: 0, duration: 0.2, ease: 'back.out(2)' }
+        );
+      }
+      return;
+    }
+
+    speakerEl.textContent = speaker;
+    textEl.textContent = text;
+    bubble.classList.remove('hidden');
+
+    gsap.killTweensOf(bubble);
     gsap.fromTo(
-      this.quipBubble,
-      { scale: 0.75, opacity: 0, y: -6 },
-      { scale: 1, opacity: 1, y: 0, duration: 0.2, ease: 'back.out(2)' }
+      bubble,
+      { x: isLeft ? -24 : 24, opacity: 0, scale: 0.9 },
+      { x: 0, opacity: 1, scale: 1, duration: 0.26, ease: 'back.out(2.2)' }
     );
 
-    if (this.quipHideTimer) clearTimeout(this.quipHideTimer);
-    this.quipHideTimer = window.setTimeout(() => {
-      gsap.to(this.quipBubble, {
-        opacity: 0,
-        duration: 0.25,
-        onComplete: () => this.quipBubble.classList.add('hidden'),
-      });
-    }, 1800);
+    if (isLeft) {
+      if (this.quipLeftTimer) clearTimeout(this.quipLeftTimer);
+      this.quipLeftTimer = window.setTimeout(() => {
+        gsap.to(bubble, {
+          x: -16,
+          opacity: 0,
+          duration: 0.22,
+          ease: 'power2.in',
+          onComplete: () => bubble.classList.add('hidden'),
+        });
+      }, 3200);
+    } else {
+      if (this.quipRightTimer) clearTimeout(this.quipRightTimer);
+      this.quipRightTimer = window.setTimeout(() => {
+        gsap.to(bubble, {
+          x: 16,
+          opacity: 0,
+          duration: 0.22,
+          ease: 'power2.in',
+          onComplete: () => bubble.classList.add('hidden'),
+        });
+      }, 3200);
+    }
   }
 
   public showBossToast(message = "You can't mess with the real boss."): void {

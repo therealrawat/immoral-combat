@@ -27,7 +27,7 @@ export interface SignatureMoveContext {
   getFighterHp(id: CharacterId): number;
   getComboHits(): number;
   nextQuipIndex(): number;
-  setQuip(speaker: string, text: string, fromPlayerAction?: boolean): void;
+  setQuip(speaker: string, text: string, fromPlayerAction?: boolean, side?: 'left' | 'right'): void;
   recordHitQuip(defenderId: CharacterId): void;
   isCinematicActive(): boolean;
   setCinematicActive(active: boolean): void;

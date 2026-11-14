@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
 
-const COMIC_WORDS = ['BAM!', 'POW!', 'SMACK!', 'WHACK!', 'BONK!'] as const;
 const BLOOD_PALETTE = [0x7f1d1d, 0x5c0606, 0x991b1b, 0x450a0a] as const;
 const MAX_ACTIVE_BLOOD_DECALS = 18;
 
@@ -153,61 +152,6 @@ function createStarGeometry(
   return geo;
 }
 
-function createComicBubbleTexture(word: string, bgColor: string): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 320;
-  const ctx = canvas.getContext('2d')!;
-
-  const cx = 256;
-  const cy = 160;
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.beginPath();
-  const spikes = 14;
-  for (let i = 0; i < spikes * 2; i++) {
-    const isOuter = i % 2 === 0;
-    const rx = isOuter ? 235 : 155;
-    const ry = isOuter ? 142 : 95;
-    const angle = (i * Math.PI) / spikes;
-    const x = Math.cos(angle) * rx;
-    const y = Math.sin(angle) * ry;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-
-  ctx.save();
-  ctx.translate(10, 10);
-  ctx.fillStyle = '#171923';
-  ctx.fill();
-  ctx.restore();
-
-  ctx.fillStyle = bgColor;
-  ctx.fill();
-  ctx.lineWidth = 12;
-  ctx.strokeStyle = '#171923';
-  ctx.stroke();
-  ctx.restore();
-
-  const fontSize = word.length >= 9 ? 62 : word.length >= 7 ? 76 : word.length >= 6 ? 88 : 104;
-  ctx.font = `900 ${fontSize}px Bangers, Impact, "Arial Black", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = word.length >= 7 ? 12 : 16;
-  ctx.strokeStyle = '#171923';
-  ctx.strokeText(word, cx, cy + 4);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(word, cx, cy + 4);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
 function createDamageNumberTexture(label: string, color: string): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -247,7 +191,6 @@ export class EffectsManager {
     timeline: gsap.core.Timeline;
   }> = [];
   private readonly textureCache = new Map<string, THREE.CanvasTexture>();
-  private wordIndex = 0;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -266,15 +209,6 @@ export class EffectsManager {
     return created;
   }
 
-  private getComicTexture(word: string, bgColor: string): THREE.CanvasTexture {
-    const key = `bubble_${word}_${bgColor}`;
-    const existing = this.textureCache.get(key);
-    if (existing) return existing;
-    const created = createComicBubbleTexture(word, bgColor);
-    this.textureCache.set(key, created);
-    return created;
-  }
-
   private getDamageTexture(label: string, color: string): THREE.CanvasTexture {
     const key = `dmg_${label}_${color}`;
     const existing = this.textureCache.get(key);
@@ -284,19 +218,14 @@ export class EffectsManager {
     return created;
   }
 
-  public spawnPunchImpact(position: THREE.Vector3, damage = 15, customWord?: string): void {
-    const word = customWord ?? COMIC_WORDS[this.wordIndex % COMIC_WORDS.length];
-    if (!customWord) this.wordIndex += 1;
-
-    this.spawnComicSprite(position, word, '#ffd426', 1.75);
+  public spawnPunchImpact(position: THREE.Vector3, damage = 15, _customWord?: string): void {
     this.spawnFloatingNumber(position, `-${damage}`, '#ffffff');
-    this.spawnStarBurst(position, 10, 1.5);
-    this.spawnShockwave(position, 0xff3b7f, 1.4);
+    this.spawnStarBurst(position, 8, 1.2);
+    this.spawnShockwave(position, 0xff3b7f, 1.2);
   }
 
-  /** Spawns cyan shield sparks, shockwaves, and comic BLOCKED banner for successful blocks. */
+  /** Spawns cyan shield sparks, shockwaves, and floating GUARD! banner for successful blocks. */
   public spawnBlockImpact(position: THREE.Vector3, chipDamage = 0): void {
-    this.spawnComicSprite(position, 'BLOCKED! 🛡️', '#38bdf8', 1.85);
     if (chipDamage > 0) {
       this.spawnFloatingNumber(position, `-${chipDamage}`, '#93c5fd');
     } else {
@@ -526,11 +455,9 @@ export class EffectsManager {
   public spawnLaserBurnImpact(
     position: THREE.Vector3,
     damage = 16,
-    word = 'BURN! 🔥',
+    _word = 'BURN! 🔥',
     isFinisher = false
   ): void {
-    const bubblePos = position.clone().add(new THREE.Vector3(isFinisher ? 0.15 : 0.42, isFinisher ? 0.55 : 0.62, 0));
-    this.spawnComicSprite(bubblePos, word, isFinisher ? '#ff3b00' : '#ff7a00', isFinisher ? 1.95 : 1.25);
     this.spawnFloatingNumber(position.clone().add(new THREE.Vector3(0, 0.22, 0)), `-${damage}`, isFinisher ? '#ff2200' : '#ffd166');
     this.spawnShockwave(position, isFinisher ? 0xff1e00 : 0xff6a00, isFinisher ? 2.1 : 1.25);
 
@@ -580,28 +507,24 @@ export class EffectsManager {
   }
 
   public spawnKickOverrideImpact(position: THREE.Vector3, damage = 25): void {
-    this.spawnComicSprite(position, 'BAM!', '#ff3b7f', 2.35);
     this.spawnFloatingNumber(position, `-${damage}!`, '#ffd426');
     this.spawnStarBurst(position, 16, 2.2);
     this.spawnShockwave(position, 0xffd426, 2.2);
   }
 
   public spawnRopeBoing(position: THREE.Vector3): void {
-    this.spawnComicSprite(position, 'BOING!', '#38bdf8', 1.45);
     this.spawnShockwave(position, 0x38bdf8, 1.15);
   }
 
   public spawnBossFlexSparkle(position: THREE.Vector3): void {
-    this.spawnComicSprite(position, 'BOSS!', '#ff3b7f', 1.35);
     this.spawnStarBurst(position, 8, 1.15);
   }
 
   public spawnHealBurst(
     position: THREE.Vector3,
     amount: number,
-    label = 'CHAI BUFF!'
+    _label = 'CHAI BUFF!'
   ): void {
-    this.spawnComicSprite(position, label, '#ff7a00', 1.3);
     if (amount > 0) {
       this.spawnFloatingNumber(
         position.clone().add(new THREE.Vector3(0, 0.25, 0)),
@@ -623,27 +546,12 @@ export class EffectsManager {
     damage: number,
     backDir: THREE.Vector3 = new THREE.Vector3(-1, 0, 0)
   ): void {
-    const words: Record<1 | 2 | 3, string> = {
-      1: 'SLAP!',
-      2: 'WHACK!',
-      3: 'SPANKED!!',
-    };
     const isFinale = step === 3;
-    const textOrigin = position
-      .clone()
-      .addScaledVector(backDir, 1.45)
-      .add(new THREE.Vector3(0, isFinale ? 0.12 : -0.05, 0));
     const dmgOrigin = position
       .clone()
       .addScaledVector(backDir, -0.95)
       .add(new THREE.Vector3(0, -0.1, 0));
 
-    this.spawnComicSprite(
-      textOrigin,
-      words[step],
-      isFinale ? '#ff3b7f' : '#ff7aa8',
-      isFinale ? 0.78 : 0.62
-    );
     this.spawnFloatingNumber(
       dmgOrigin,
       isFinale ? `-${damage}!!` : `-${damage}`,
@@ -654,7 +562,6 @@ export class EffectsManager {
   }
 
   public spawnSignatureImpact(position: THREE.Vector3, damage = 45): void {
-    this.spawnComicSprite(position, 'BOSS SLAM!', '#ff3b7f', 2.55);
     this.spawnFloatingNumber(position, `-${damage}!!`, '#ffd426');
     this.spawnStarBurst(position, 22, 2.65);
     this.spawnShockwave(position, 0xffd426, 2.8);
@@ -662,12 +569,10 @@ export class EffectsManager {
   }
 
   public spawnKissHealEffects(midpoint: THREE.Vector3): void {
-    const captionOrigin = midpoint.clone().add(new THREE.Vector3(0.64, 0.14, 0));
     const healOrigin = midpoint.clone().add(new THREE.Vector3(-0.6, 0.14, 0));
     const haloOrigin = midpoint.clone().setY(0.12);
     const heartOrigin = midpoint.clone().add(new THREE.Vector3(0, -0.06, -0.18));
 
-    this.spawnComicSprite(captionOrigin, 'MWAH!', '#ff5e99', 1.15);
     this.spawnFloatingNumber(healOrigin, '+150 HP!', '#34d399');
     this.spawnShockwave(haloOrigin, 0xff87b2, 1.5);
     this.spawnHeartFountain(heartOrigin, 12);
@@ -741,62 +646,6 @@ export class EffectsManager {
       .to(sprite.scale, { x: 1.05, y: 0.58, duration: 0.14, ease: 'back.out(2.2)' })
       .to(sprite.position, { y: sprite.position.y + 0.95, duration: 0.72, ease: 'power2.out' }, 0)
       .to(mat, { opacity: 0, duration: 0.25, delay: 0.45 }, 0);
-  }
-
-  private spawnComicSprite(
-    position: THREE.Vector3,
-    word: string,
-    bgColor: string,
-    baseScale: number
-  ): void {
-    const texture = this.getComicTexture(word, bgColor);
-    const mat = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      depthTest: false,
-    });
-    const sprite = new THREE.Sprite(mat);
-    sprite.renderOrder = 20;
-    sprite.position.copy(position).add(new THREE.Vector3(0, 0.35, 0.35));
-    sprite.scale.set(0.01, 0.01, 1);
-    mat.rotation = (Math.random() - 0.5) * 0.35;
-    this.scene.add(sprite);
-
-    const targetW = baseScale * 1.45;
-    const targetH = baseScale * 0.92;
-
-    const tl = gsap.timeline({
-      onComplete: () => {
-        this.scene.remove(sprite);
-        mat.dispose();
-      },
-    });
-
-    tl.to(sprite.scale, {
-      x: targetW,
-      y: targetH,
-      duration: 0.18,
-      ease: 'back.out(2.6)',
-    });
-    tl.to(
-      sprite.position,
-      {
-        y: sprite.position.y + 0.72,
-        duration: 0.65,
-        ease: 'power2.out',
-      },
-      0
-    );
-    tl.to(
-      mat,
-      {
-        opacity: 0,
-        duration: 0.26,
-        delay: 0.36,
-        ease: 'power1.in',
-      },
-      0
-    );
   }
 
   private spawnStarBurst(origin: THREE.Vector3, count: number, spread: number): void {

@@ -131,6 +131,8 @@ export interface GameHUDState {
   stressReliefPercent: number;
   targetQuip: string;
   targetQuipSpeaker: string;
+  targetQuipSide?: 'left' | 'right';
+  targetQuipId?: number;
   isMuted: boolean;
   isCounterSequenceActive: boolean;
   isModalOpen: boolean;
