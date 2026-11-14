@@ -98,32 +98,34 @@ const PRIYANSHU_HIT_QUIPS = [
 ] as const;
 
 const MODIJI_HIT_QUIPS = [
-  'Whoa—watch the spectacles!! 👓',
-  'Mitrooon—not the kurta!! 😅',
-  'My Laser Eyes are warming up!! 🔥',
-  'Temporary tactical retreat!! 😵',
-  'That was uncalled for!! ⚡',
+  'Arey... MITROOOOON!',
+  'wah...Kya scene hai',
+  'Yeh un-parliamentary hain!',
+  'Videshi saazish!',
+  'Surgical strike on me?!'
 ] as const;
 
 const TRUMP_HIT_QUIPS = [
-  'My golden robe!! Watch it!! 👑',
-  'Fake punch! Huge miss!! 😤',
-  'Nobody hits the Pontiff like that!! ⚡',
-  'Tremendous foul!! Time out!! 🥊',
+  'FAKE NEWS!!',
+  'WORST DEAL IN THE HISTORY OF TRADE DEALS!',
+  'YOU ARE FIRED!',
+  'RIGGED...',
+  'WITCH HUNT!!!'
 ] as const;
 
 const PUTIN_HIT_QUIPS = [
-  'Tactical pause!! Do not test patience!! ♟️',
-  'Longer table required immediately!! 🪑',
-  'My sambo guard slipped!! ⚡',
+  'Russia does not negotiate.',
+  'There is no happiness in life...blyat',
+  'Snotty noses.',
   'Matryoshka counter is armed!! 🪆',
 ] as const;
 
 const AMITABH_HIT_QUIPS = [
-  'Hain? Yeh kya kiya aapne?! 🤨',
-  'Yeh 25 saal ka gussa hai!! 💥',
-  'Don ko hilaana mushkil hi nahi, namumkin hai! 😎',
-  'Vijay Dinanath Chauhan kabhi peechhe nahi hatta! 🔥',
+  'Hain? Yeh kya kiya aapne?!',
+  'Yeh 25 saal ka gussa hai!! ',
+  'Don ko hilaana mushkil hi nahi, namumkin hai!',
+  'Vijay Dinanath Chauhan kabhi peechhe nahi hatta!',
+  'Maa ka barosa...AAG!! '
 ] as const;
 
 const HIT_QUIP_MAP: Record<CharacterId, readonly (string | (() => string))[]> = {
@@ -133,39 +135,6 @@ const HIT_QUIP_MAP: Record<CharacterId, readonly (string | (() => string))[]> = 
   trump: TRUMP_HIT_QUIPS,
   putin: PUTIN_HIT_QUIPS,
   amitabh: AMITABH_HIT_QUIPS,
-};
-
-const MODIJI_STRIKE_QUIPS = [
-  'Precision strike incoming!! ⚡',
-  'Mitron, duck this!! 🥊',
-  'Superpower uppercut!! 💥',
-] as const;
-
-const TRUMP_STRIKE_QUIPS = [
-  'Huge golden strike!! Tremendous!! 🥊🔥',
-  'The best combo—everybody says so!! ⚡',
-  'Pontiff power punch!! Believe me!! 💥',
-] as const;
-
-const PUTIN_STRIKE_QUIPS = [
-  'Calculated Sambo strike!! ♟️💥',
-  'Sit at the end of the table!! 🪑⚡',
-  'Precision Kremlin counter!! 🥊',
-] as const;
-
-const AMITABH_STRIKE_QUIPS = [
-  'Rishte mein toh hum tumhare baap lagte hain! 👑',
-  'Hum jahan khade hote hain, line wahin se shuru hoti hai! ⚡',
-  'Shahenshah ka vaar!! 🥊💥',
-] as const;
-
-const STRIKE_QUIP_MAP: Record<CharacterId, readonly string[]> = {
-  chinu: ['Watch yourself around the Real Boss! 👑'],
-  priyanshu: ['Gotcha cleanly!! 🥊', 'Fast hands!! ⚡', 'Incoming challenger hit!! 💥'],
-  modiji: MODIJI_STRIKE_QUIPS,
-  trump: TRUMP_STRIKE_QUIPS,
-  putin: PUTIN_STRIKE_QUIPS,
-  amitabh: AMITABH_STRIKE_QUIPS,
 };
 
 const PRIYANSHU_BOSS_QUIPS = [
@@ -221,7 +190,9 @@ export class GameController {
   private targetQuipSpeaker = FIGHTER_META[this.initialDefaults.opponent].displayName;
   private targetQuipSide: 'left' | 'right' = 'right';
   private targetQuipId = 0;
+  private targetQuipScreenPos?: { x: number; y: number };
   private lastPlayerQuipAt = 0;
+  private lastBrutalHitQuipAt = 0;
   private quipIndex = 0;
   private isCinematicActive = false;
   private pendingPriyanshuLounge = false;
@@ -1027,7 +998,46 @@ export class GameController {
     this.physics.step(scaledDelta, this.selectedCharacter);
 
     this.sceneManager.render();
+    this.updateQuipBubblePositions();
   };
+
+  private updateQuipBubblePositions(): void {
+    if (!this.ui.hasActiveQuip()) return;
+
+    const camera = this.sceneManager.camera;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    if (this.ui.isQuipActive('left')) {
+      const leftRig = this.rigs.get(this.leftFighterId);
+      if (leftRig) {
+        const headPos = new THREE.Vector3();
+        leftRig.headAnchor.getWorldPosition(headPos);
+        headPos.y += 0.42;
+        headPos.project(camera);
+        if (headPos.z <= 1) {
+          const screenX = (headPos.x * 0.5 + 0.5) * width;
+          const screenY = (-headPos.y * 0.5 + 0.5) * height;
+          this.ui.setQuipPosition('left', screenX, screenY);
+        }
+      }
+    }
+
+    if (this.ui.isQuipActive('right')) {
+      const rightRig = this.rigs.get(this.rightFighterId);
+      if (rightRig) {
+        const headPos = new THREE.Vector3();
+        rightRig.headAnchor.getWorldPosition(headPos);
+        headPos.y += 0.42;
+        headPos.project(camera);
+        if (headPos.z <= 1) {
+          const screenX = (headPos.x * 0.5 + 0.5) * width;
+          const screenY = (-headPos.y * 0.5 + 0.5) * height;
+          this.ui.setQuipPosition('right', screenX, screenY);
+        }
+      }
+    }
+  }
 
   private getSlotForFighter(id: CharacterId): PlayerSlot {
     return id === this.leftFighterId ? 'player1' : 'player2';
@@ -1487,13 +1497,7 @@ export class GameController {
       return;
     }
     const humanSlot = this.getSlotForFighter(this.selectedCharacter);
-    if (!this.gameManager.triggerSignature(humanSlot)) {
-      this.setQuip(
-        FIGHTER_META[this.selectedCharacter].displayName,
-        `Signature at ${this.gameManager.getSignatureCharge(humanSlot)}% — reach 100% first! ⚡`
-      );
-      this.syncHUD();
-    }
+    this.gameManager.triggerSignature(humanSlot);
   }
 
   private handleSecondarySignatureAction(): void {
@@ -1506,11 +1510,6 @@ export class GameController {
     if (!secondary) return;
     const humanSlot = this.getSlotForFighter(this.selectedCharacter);
     if (!this.gameManager.consumeSignatureCharge(humanSlot)) {
-      this.setQuip(
-        FIGHTER_META[this.selectedCharacter].displayName,
-        `Signature at ${this.gameManager.getSignatureCharge(humanSlot)}% — reach 100% first! ⚡`
-      );
-      this.syncHUD();
       return;
     }
     executeCharacterSignature(
@@ -1661,11 +1660,30 @@ export class GameController {
     this.targetQuipSpeaker = speaker;
     this.targetQuip = text;
     this.targetQuipId += 1;
-    this.targetQuipSide =
+    const resolvedSide: 'left' | 'right' =
       side ??
       (speaker === FIGHTER_META[this.leftFighterId].displayName
         ? 'left'
         : 'right');
+    this.targetQuipSide = resolvedSide;
+
+    const speakerRig =
+      resolvedSide === 'left'
+        ? this.rigs.get(this.leftFighterId)
+        : this.rigs.get(this.rightFighterId);
+    if (speakerRig) {
+      const headPos = new THREE.Vector3();
+      speakerRig.headAnchor.getWorldPosition(headPos);
+      headPos.y += 0.42;
+      headPos.project(this.sceneManager.camera);
+      if (headPos.z <= 1) {
+        this.targetQuipScreenPos = {
+          x: (headPos.x * 0.5 + 0.5) * window.innerWidth,
+          y: (-headPos.y * 0.5 + 0.5) * window.innerHeight,
+        };
+      }
+    }
+
     if (fromPlayerAction) {
       this.lastPlayerQuipAt = performance.now();
     }
@@ -1957,7 +1975,11 @@ export class GameController {
         hitType,
       });
 
-      this.recordHitQuip(defenderId);
+      const isBrutalStrike = isKick || damage >= 22 || this.comboHits >= 4;
+      if (isBrutalStrike && performance.now() - this.lastBrutalHitQuipAt > 2800) {
+        this.lastBrutalHitQuipAt = performance.now();
+        this.recordHitQuip(defenderId);
+      }
       this.applyDamageToFighter(defenderId, attackerId, damage, false);
     }, impactDelayMs);
   }
@@ -2101,12 +2123,10 @@ export class GameController {
         hitType,
       });
 
-      if (this.canShowCpuQuip()) {
-        const speaker = FIGHTER_META[attackerId].displayName;
-        const pool = STRIKE_QUIP_MAP[attackerId];
-        const quip = pool[this.quipIndex % pool.length];
-        this.quipIndex += 1;
-        this.setQuip(speaker, quip, false);
+      const isBrutalHit = isKick || damage >= 22;
+      if (isBrutalHit && performance.now() - this.lastBrutalHitQuipAt > 2800) {
+        this.lastBrutalHitQuipAt = performance.now();
+        this.recordHitQuip(defenderId);
       }
 
       this.applyDamageToFighter(defenderId, attackerId, damage, false, false);
@@ -2173,46 +2193,6 @@ export class GameController {
     }
 
     this.effects.spawnBossFlexSparkle(cpuRig.root.position.clone().setY(meta.sparkleY));
-
-    if (this.canShowCpuQuip()) {
-      const speaker = FIGHTER_META[cpuId].displayName;
-      let quip = 'Staying sharp in the ring! 💪';
-      if (cpuId === 'priyanshu') {
-        quip =
-          state === 'LOUNGE'
-            ? 'Just lounging like your Ring Champ! 😎🛋️'
-            : '200 pushups daily—never skipping! 💪🔥';
-      } else if (cpuId === 'chinu') {
-        quip =
-          state === 'DANCE'
-            ? 'Boss cardio footwork! 💃🥊'
-            : state === 'CHAMP_POSE'
-              ? 'Born to reign this ring! 🏆👑'
-              : 'Just chilling like the Real Boss 😎✨';
-      } else if (cpuId === 'modiji') {
-        quip =
-          state === 'DANCE'
-            ? 'Victory cheer for the crowd!! 🙌✨'
-            : 'Aerial flip style!! 🤸🔥';
-      } else if (cpuId === 'trump') {
-        quip =
-          state === 'DANCE'
-            ? 'Tremendous flex!! Look at those biceps!! 💪🔥'
-            : 'Nobody taunts better than me!! 😤👑';
-      } else if (cpuId === 'putin') {
-        quip =
-          state === 'DANCE'
-            ? 'Sambo rhythm ready!! 🥊♟️'
-            : 'Checkmate begins with posture!! 🫡🔥';
-      } else if (cpuId === 'amitabh') {
-        quip =
-          state === 'DANCE'
-            ? 'Shahenshah ka swag!! 👑✨'
-            : 'Hum jahan khade hote hain, line wahin se shuru hoti hai! ⚡';
-      }
-      this.setQuip(speaker, quip, false);
-      this.syncHUD();
-    }
   }
 
   private triggerChinuShowboatPose(
@@ -2638,12 +2618,7 @@ export class GameController {
       this.sound.playBossKickImpact();
       this.sceneManager.triggerShake(0.18, 0.24);
 
-      const attackerQuipList = STRIKE_QUIP_MAP[attackerId];
-      this.setQuip(
-        FIGHTER_META[attackerId].displayName,
-        attackerQuipList[this.quipIndex % attackerQuipList.length]
-      );
-      this.quipIndex += 1;
+      this.recordHitQuip(defenderId);
 
       this.applyDamageToFighter(defenderId, attackerId, OPPONENT_STRIKE_DAMAGE, false);
     }, 200);
@@ -3164,6 +3139,7 @@ export class GameController {
       targetQuipSpeaker: this.targetQuipSpeaker,
       targetQuipSide: this.targetQuipSide,
       targetQuipId: this.targetQuipId,
+      targetQuipScreenPos: this.targetQuipScreenPos,
       isMuted: this.sound.isMuted(),
       isCounterSequenceActive: this.isCinematicActive,
       isModalOpen: this.ui.isModalOpen(),

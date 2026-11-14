@@ -133,6 +133,7 @@ export interface GameHUDState {
   targetQuipSpeaker: string;
   targetQuipSide?: 'left' | 'right';
   targetQuipId?: number;
+  targetQuipScreenPos?: { x: number; y: number };
   isMuted: boolean;
   isCounterSequenceActive: boolean;
   isModalOpen: boolean;

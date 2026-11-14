@@ -96,22 +96,16 @@
         </div>
       </header>
 
-      <!-- Side Fighter Speech Bubbles / Quip Callouts (Anchored on Each Fighter's Side) -->
+      <!-- Floating 3D Fighter Speech Bubbles (Tracked Directly Over Fighter Heads) -->
       <div class="fighter-dialogue-container" id="fighter-dialogue-container" aria-live="polite">
-        <div class="fighter-quip-bubble fighter-quip-bubble--left hidden" id="quip-bubble-left">
-          <div class="fighter-quip-speaker" id="quip-speaker-left">PLAYER 1</div>
-          <div class="fighter-quip-body">
-            <span class="fighter-quip-text" id="quip-text-left"></span>
-          </div>
-          <div class="fighter-quip-tail fighter-quip-tail--left" aria-hidden="true"></div>
+        <div class="fighter-quip-bubble hidden" id="quip-bubble-left">
+          <span class="fighter-quip-text" id="quip-text-left"></span>
+          <div class="fighter-quip-tail" aria-hidden="true"></div>
         </div>
 
-        <div class="fighter-quip-bubble fighter-quip-bubble--right hidden" id="quip-bubble-right">
-          <div class="fighter-quip-speaker" id="quip-speaker-right">OPPONENT</div>
-          <div class="fighter-quip-body">
-            <span class="fighter-quip-text" id="quip-text-right"></span>
-          </div>
-          <div class="fighter-quip-tail fighter-quip-tail--right" aria-hidden="true"></div>
+        <div class="fighter-quip-bubble hidden" id="quip-bubble-right">
+          <span class="fighter-quip-text" id="quip-text-right"></span>
+          <div class="fighter-quip-tail" aria-hidden="true"></div>
         </div>
       </div>
 
