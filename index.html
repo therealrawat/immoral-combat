@@ -299,35 +299,19 @@
 
       <!-- In-Game Pause Menu Overlay (Toggled with ⏸ PAUSE / ESC) -->
       <div class="pause-menu-backdrop hidden" id="pause-menu-backdrop" role="dialog" aria-modal="true"
-        aria-labelledby="pause-menu-title">
-        <div class="pause-menu-card" id="pause-menu-card">
-          <div class="pause-menu-crest" aria-hidden="true">⏸</div>
-          <span class="pause-menu-kicker">MATCH SUSPENDED</span>
-          <h2 class="pause-menu-title" id="pause-menu-title">GAME PAUSED</h2>
-          <p class="pause-menu-desc">Take a breather, fighter. Choose your next move:</p>
-
-          <div class="pause-menu-actions">
-            <button type="button" class="pause-menu-btn pause-menu-btn--resume" id="btn-pause-resume">
-              <span class="pause-menu-btn-icon">▶</span>
-              <span class="pause-menu-btn-text">RESUME FIGHT</span>
-              <kbd class="pause-menu-kbd">ESC</kbd>
-            </button>
-            <button type="button" class="pause-menu-btn pause-menu-btn--restart" id="btn-pause-restart">
-              <span class="pause-menu-btn-icon">🔄</span>
-              <span class="pause-menu-btn-text">RESTART MATCH</span>
-              <kbd class="pause-menu-kbd">R</kbd>
-            </button>
-            <button type="button" class="pause-menu-btn pause-menu-btn--controls" id="btn-pause-controls">
-              <span class="pause-menu-btn-icon">🎮</span>
-              <span class="pause-menu-btn-text">CONTROLS GUIDE</span>
-              <kbd class="pause-menu-kbd">H</kbd>
-            </button>
-            <button type="button" class="pause-menu-btn pause-menu-btn--quit" id="btn-pause-quit">
-              <span class="pause-menu-btn-icon">🚪</span>
-              <span class="pause-menu-btn-text">QUIT TO MAIN SCREEN</span>
-            </button>
-          </div>
-        </div>
+        aria-label="Game Paused">
+        <nav class="simple-pause-menu" id="pause-menu-card" aria-label="Pause Menu Navigation">
+          <button type="button" class="simple-pause-item pause-menu-btn" id="btn-pause-resume">
+            Resume
+          </button>
+          <button type="button" class="simple-pause-item pause-menu-btn" id="btn-pause-restart">
+            Restart
+          </button>
+          <button type="button" class="simple-pause-item pause-menu-btn" id="btn-pause-quit">
+            Quit
+          </button>
+          <button type="button" class="hidden" id="btn-pause-controls" tabindex="-1" aria-hidden="true"></button>
+        </nav>
       </div>
 
       <!-- Sacred Character Key Unlock Dialog (Chinu) -->
