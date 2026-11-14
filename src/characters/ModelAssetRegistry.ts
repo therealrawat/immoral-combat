@@ -250,6 +250,9 @@ function buildModelAssetRegistry(): SplitModelRegistry {
     ['lifting', ['lifting', 'lift']],
     ['stabbing', ['stabbing', 'stab']],
     ['salute', ['salute', 'entry', 'praying']],
+    ['greet', ['quick-formal-bow', 'quick-informal-bow']],
+    ['bow-formal', ['quick-formal-bow']],
+    ['bow-informal', ['quick-informal-bow']],
   ];
 
   for (const [semanticKey, candidateKeys] of aliasDefaults) {
@@ -297,6 +300,27 @@ const STANDARD_CONVENTION_RULES: readonly ConventionMoveRule[] = [
       'cheering',
       'entry',
     ],
+    defaultSpeed: 1.25,
+    stripHorizontalRootMotion: true,
+  },
+  {
+    state: 'GREET',
+    clipSuffix: 'Greet',
+    moveKeys: ['quick-formal-bow', 'quick-informal-bow'],
+    defaultSpeed: 1.25,
+    stripHorizontalRootMotion: true,
+  },
+  {
+    state: 'BOW_FORMAL',
+    clipSuffix: 'BowFormal',
+    moveKeys: ['quick-formal-bow'],
+    defaultSpeed: 1.25,
+    stripHorizontalRootMotion: true,
+  },
+  {
+    state: 'BOW_INFORMAL',
+    clipSuffix: 'BowInformal',
+    moveKeys: ['quick-informal-bow'],
     defaultSpeed: 1.25,
     stripHorizontalRootMotion: true,
   },
@@ -535,6 +559,9 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
 > = {
   chinu: {
     ENTRY: { moveKeys: ['rallying', 'victory'], clipName: 'ChinuNativeVictoryEntry', speed: 1.2 },
+    GREET: { moveKeys: ['quick-formal-bow'], clipName: 'ChinuNativeBowGreet', speed: 1.15, stripHorizontalRootMotion: true },
+    BOW_FORMAL: { moveKeys: ['quick-formal-bow'], clipName: 'ChinuNativeBowFormal', speed: 1.15, stripHorizontalRootMotion: true },
+    BOW_INFORMAL: { moveKeys: ['quick-informal-bow'], clipName: 'ChinuNativeBowInformal', speed: 1.15, stripHorizontalRootMotion: true },
     IDLE: { moveKeys: ['warrior-idle', 'idle-1'] },
     PUNCH: { moveKeys: ['elbow-punching', 'punching'], clipName: 'ChinuNativeElbowPunch', speed: 2.35 },
     KICK: { moveKeys: ['mma-kick', 'kicking'], clipName: 'ChinuNativeMmaKick', speed: 2.1 },
@@ -545,6 +572,9 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
   },
   priyanshu: {
     ENTRY: { moveKeys: ['quick-formal-bow', 'waving'], clipName: 'PriyanshuNativeBowEntry', speed: 1.25 },
+    GREET: { moveKeys: ['quick-formal-bow'], clipName: 'PriyanshuNativeBowGreet', speed: 1.15, stripHorizontalRootMotion: true },
+    BOW_FORMAL: { moveKeys: ['quick-formal-bow'], clipName: 'PriyanshuNativeBowFormal', speed: 1.15, stripHorizontalRootMotion: true },
+    BOW_INFORMAL: { moveKeys: ['quick-informal-bow'], clipName: 'PriyanshuNativeBowInformal', speed: 1.15, stripHorizontalRootMotion: true },
     IDLE: { moveKeys: ['warrior-idle'] },
     LOUNGE: {
       moveKeys: ['warrior-idle', 'breathing-idle'],
@@ -561,6 +591,9 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
   },
   modiji: {
     ENTRY: { moveKeys: ['praying'], clipName: 'ModijiNativePrayingEntry', speed: 1.25 },
+    GREET: { moveKeys: ['quick-formal-bow', 'quick-informal-bow'], clipName: 'ModijiNativeBowGreet', speed: 1.1, stripHorizontalRootMotion: true },
+    BOW_FORMAL: { moveKeys: ['quick-formal-bow'], clipName: 'ModijiNativeBowFormal', speed: 1.1, stripHorizontalRootMotion: true },
+    BOW_INFORMAL: { moveKeys: ['quick-informal-bow'], clipName: 'ModijiNativeBowInformal', speed: 1.1, stripHorizontalRootMotion: true },
     IDLE: { moveKeys: ['breathing-idle'] },
     PUNCH: { moveKeys: ['punching'], speed: 2.35 },
     KICK: { moveKeys: ['mma-kick', 'kicking'], speed: 2.1 },
@@ -569,6 +602,9 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
   },
   trump: {
     ENTRY: { moveKeys: ['waving', 'rallying'], clipName: 'TrumpNativeWavingEntry', speed: 1.25 },
+    GREET: { moveKeys: ['quick-formal-bow', 'quick-informal-bow'], clipName: 'TrumpNativeBowGreet', speed: 1.15, stripHorizontalRootMotion: true },
+    BOW_FORMAL: { moveKeys: ['quick-formal-bow'], clipName: 'TrumpNativeBowFormal', speed: 1.15, stripHorizontalRootMotion: true },
+    BOW_INFORMAL: { moveKeys: ['quick-informal-bow'], clipName: 'TrumpNativeBowInformal', speed: 1.15, stripHorizontalRootMotion: true },
     IDLE: { moveKeys: ['warrior-idle'] },
     PUNCH: { moveKeys: ['hook-punch', 'punching'], clipName: 'TrumpNativeHookPunch', speed: 2.35 },
     KICK: { moveKeys: ['kicking'], speed: 2.0 },
@@ -577,6 +613,9 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
   },
   putin: {
     ENTRY: { moveKeys: ['salute'], clipName: 'PutinNativeSaluteEntry', speed: 1.2 },
+    GREET: { moveKeys: ['quick-formal-bow', 'quick-informal-bow'], clipName: 'PutinNativeBowGreet', speed: 1.15, stripHorizontalRootMotion: true },
+    BOW_FORMAL: { moveKeys: ['quick-formal-bow'], clipName: 'PutinNativeBowFormal', speed: 1.15, stripHorizontalRootMotion: true },
+    BOW_INFORMAL: { moveKeys: ['quick-informal-bow'], clipName: 'PutinNativeBowInformal', speed: 1.15, stripHorizontalRootMotion: true },
     IDLE: { moveKeys: ['neutral-idle'] },
     PUNCH: { moveKeys: ['punching'], speed: 2.35 },
     KICK: { moveKeys: ['flying-kick', 'mma-kick'], clipName: 'PutinNativeFlyingKick', speed: 2.15 },
@@ -601,6 +640,9 @@ const CHARACTER_SPEC_OVERRIDES: Partial<
   },
   amitabh: {
     ENTRY: { moveKeys: ['quick-informal-bow', 'waving'], clipName: 'AmitabhNativeBowEntry', speed: 1.2 },
+    GREET: { moveKeys: ['quick-informal-bow', 'quick-formal-bow'], clipName: 'AmitabhNativeBowGreet', speed: 1.15, stripHorizontalRootMotion: true },
+    BOW_FORMAL: { moveKeys: ['quick-formal-bow'], clipName: 'AmitabhNativeBowFormal', speed: 1.15, stripHorizontalRootMotion: true },
+    BOW_INFORMAL: { moveKeys: ['quick-informal-bow'], clipName: 'AmitabhNativeBowInformal', speed: 1.15, stripHorizontalRootMotion: true },
     IDLE: { moveKeys: ['breathing-idle'] },
     PUNCH: { moveKeys: ['hook-punch', 'punching'], clipName: 'AmitabhNativeHookPunch', speed: 2.35 },
     KICK: { moveKeys: ['kicking'], speed: 2.05 },

@@ -41,6 +41,9 @@ const ONE_SHOT_STATES = new Set<FighterState>([
   'LIFTING',
   'STABBING',
   'SALUTE',
+  'GREET',
+  'BOW_FORMAL',
+  'BOW_INFORMAL',
 ]);
 
 export type AnimationFinishedHandler = (finishedState: FighterState) => void;
@@ -274,6 +277,21 @@ export class AnimationController {
         resolvedState = 'POSE';
         nextAction = this.actions.get(resolvedState);
       }
+    } else if (
+      !nextAction &&
+      (resolvedState === 'GREET' ||
+        resolvedState === 'BOW_FORMAL' ||
+        resolvedState === 'BOW_INFORMAL')
+    ) {
+      const candidates: FighterState[] = ['BOW_FORMAL', 'BOW_INFORMAL', 'GREET', 'ENTRY', 'POSE'];
+      for (const cand of candidates) {
+        const a = this.actions.get(cand);
+        if (a) {
+          resolvedState = cand;
+          nextAction = a;
+          break;
+        }
+      }
     }
 
     if (resolvedState === this.currentState && !restartIfSame) {
@@ -381,10 +399,13 @@ export class AnimationController {
       return 0.14;
     }
 
-    // Poses, victory gestures, emotes, salute, get up
+    // Poses, victory gestures, emotes, salute, greet, get up
     if (
       toState === 'POSE' ||
       toState === 'SALUTE' ||
+      toState === 'GREET' ||
+      toState === 'BOW_FORMAL' ||
+      toState === 'BOW_INFORMAL' ||
       toState === 'ENTRY' ||
       toState === 'DANCE' ||
       toState === 'CHAMP_POSE' ||
@@ -394,7 +415,7 @@ export class AnimationController {
       toState === 'KISS' ||
       toState === 'BLUSH'
     ) {
-      return 0.24;
+      return 0.22;
     }
 
     // Knockdowns & death falls

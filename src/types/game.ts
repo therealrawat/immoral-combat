@@ -47,7 +47,10 @@ export type FighterState =
   | 'GET_UP'
   | 'LIFTING'
   | 'STABBING'
-  | 'SALUTE';
+  | 'SALUTE'
+  | 'GREET'
+  | 'BOW_FORMAL'
+  | 'BOW_INFORMAL';
 
 export type CharacterBoneName =
   | 'Hips'

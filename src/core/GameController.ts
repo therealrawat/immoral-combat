@@ -368,10 +368,12 @@ export class GameController {
       onQuitToSelect: () => {
         this.pendingMatchRestartAfterModalClose = true;
         this.sound.playClick();
+        this.sceneManager.resetCamera(true);
         this.gameManager.pause();
       },
       onRematch: () => {
         this.sound.playClick();
+        this.sceneManager.resetCamera(true);
         void this.stageManager.applyRandomSkybox(this.activeStageId);
         this.gameManager.startMatch();
       },
@@ -414,6 +416,9 @@ export class GameController {
         onSlowMoChange: (active) => {
           this.koSlowMoActive = active;
         },
+        onRoundStart: (roundNum) => {
+          this.triggerPreFightGreetingSequence(roundNum);
+        },
         onAnnouncementPhase: (phase, title) => {
           if (phase === 'round') {
             const isFinal = title.toUpperCase().includes('FINAL');
@@ -437,8 +442,27 @@ export class GameController {
           if (result.reason === 'ko') {
             this.sound.playKOBell();
             if (result.winner !== 'draw') {
-              const winnerId = this.getFighterForSlot(result.winner);
+              const winnerSlot = result.winner;
+              const defeatedSlot: PlayerSlot =
+                result.defeated ?? (winnerSlot === 'player1' ? 'player2' : 'player1');
+              const winnerId = this.getFighterForSlot(winnerSlot);
+              const defeatedId = this.getFighterForSlot(defeatedSlot);
+              const winnerRig = this.rigs.get(winnerId);
+              const defeatedRig = this.rigs.get(defeatedId);
               const winnerAnim = this.anims.get(winnerId);
+
+              // Cinematic KO camera zoom sequence:
+              // 1. Zoom in on defeated player as they hit the canvas in slow-motion
+              // 2. Pan and heroic close-up on the celebrating winner
+              if (defeatedRig && winnerRig) {
+                const defPos = defeatedRig.root.position.clone();
+                const winPos = winnerRig.root.position.clone();
+                this.isCinematicActive = true;
+                this.sceneManager.triggerKOCinematicSequence(defPos, winPos, () => {
+                  this.isCinematicActive = false;
+                });
+              }
+
               if (winnerAnim && !this.physics.isKnockedDown(winnerId)) {
                 const cheerState: FighterState | null = winnerAnim.hasState('POSE')
                   ? 'POSE'
@@ -453,7 +477,7 @@ export class GameController {
                     if (gameState === 'ROUND_END' || gameState === 'MATCH_OVER') {
                       winnerAnim.transitionTo(cheerState, 0.15, true);
                     }
-                  }, 650);
+                  }, 1500);
                 }
               }
             }
@@ -463,6 +487,7 @@ export class GameController {
         },
         onRoundReset: () => {
           this.isCinematicActive = false;
+          this.sceneManager.resetCamera(false);
           this.clearTransientDisposables();
           this.aggressionHits.clear();
           this.effects.clearBloodDecals();
@@ -2400,6 +2425,85 @@ export class GameController {
     };
     this.setQuip(FIGHTER_META[actorId].displayName, entryQuips[actorId]);
     this.syncHUD();
+  }
+
+  /**
+   * Pre-Fight Greeting Sequence:
+   * Both fighters face each other at match start and perform a respectful martial arts bow:
+   * - Combo 1: Formal - Formal Bow (both fighters formal bow)
+   * - Combo 2: Formal - Informal Bow (challenger formal bow vs opponent informal bow)
+   * - Combo 3: Informal - Formal Bow (challenger informal bow vs opponent formal bow)
+   * - Combo 4: Informal - Informal Bow (both fighters informal bow)
+   * Note: Strictly bows facing each other; no handshakes.
+   */
+  public triggerPreFightGreetingSequence(roundNumber: number): void {
+    if (this.disposed) return;
+    const leftId = this.leftFighterId;
+    const rightId = this.rightFighterId;
+    const leftAnim = this.anims.get(leftId);
+    const rightAnim = this.anims.get(rightId);
+    const leftRig = this.rigs.get(leftId);
+    const rightRig = this.rigs.get(rightId);
+
+    if (!leftAnim || !rightAnim || !leftRig || !rightRig) return;
+
+    // Keep rig.root rotation strictly at identity (0, 0, 0)
+    leftRig.root.rotation.set(0, 0, 0);
+    rightRig.root.rotation.set(0, 0, 0);
+
+    // Left fighter at -X faces +X (Math.PI / 2); Right fighter at +X faces -X (-Math.PI / 2)
+    leftRig.modelRoot.rotation.set(0, Math.PI / 2, 0);
+    rightRig.modelRoot.rotation.set(0, -Math.PI / 2, 0);
+
+    // Lock facing during greeting in physics system so characters don't drift or fight
+    this.physics.setLocomotionState(leftId, false, Math.PI / 2);
+    this.physics.setLocomotionState(rightId, false, -Math.PI / 2);
+
+    // Respectful bow combos strictly (formal-formal, formal-informal, informal-formal, informal-informal)
+    const comboPool: ReadonlyArray<[FighterState, FighterState]> = [
+      ['BOW_FORMAL', 'BOW_FORMAL'],
+      ['BOW_FORMAL', 'BOW_INFORMAL'],
+      ['BOW_INFORMAL', 'BOW_FORMAL'],
+      ['BOW_INFORMAL', 'BOW_INFORMAL'],
+    ];
+    const comboIndex = Math.abs(roundNumber + leftId.charCodeAt(0) + rightId.charCodeAt(0)) % comboPool.length;
+    const [desiredLeft, desiredRight] = comboPool[comboIndex];
+
+    const leftGreet: FighterState = leftAnim.hasState(desiredLeft)
+      ? desiredLeft
+      : leftAnim.hasState('BOW_FORMAL')
+        ? 'BOW_FORMAL'
+        : leftAnim.hasState('BOW_INFORMAL')
+          ? 'BOW_INFORMAL'
+          : 'IDLE';
+
+    const rightGreet: FighterState = rightAnim.hasState(desiredRight)
+      ? desiredRight
+      : rightAnim.hasState('BOW_FORMAL')
+        ? 'BOW_FORMAL'
+        : rightAnim.hasState('BOW_INFORMAL')
+          ? 'BOW_INFORMAL'
+          : 'IDLE';
+
+    // Camera two-shot framing both fighters bowing toward each other
+    this.sceneManager.triggerGreetingCinematic(leftRig.root.position, rightRig.root.position, 1.95);
+
+    // Play greeting bow animations
+    leftAnim.transitionTo(leftGreet, 0.18, true);
+    rightAnim.transitionTo(rightGreet, 0.18, true);
+
+    // Smoothly transition back to combat IDLE and unlock yaw as FIGHT! announcement begins
+    this.scheduleUnscaled(() => {
+      // Release custom yaw locks so dynamic combat facing resumes
+      this.physics.setLocomotionState(leftId, false, null);
+      this.physics.setLocomotionState(rightId, false, null);
+
+      const state = this.gameManager.getState();
+      if (state === 'INTRO' || state === 'FIGHTING') {
+        leftAnim.transitionTo('IDLE', 0.22, true);
+        rightAnim.transitionTo('IDLE', 0.22, true);
+      }
+    }, 2050);
   }
 
   /**

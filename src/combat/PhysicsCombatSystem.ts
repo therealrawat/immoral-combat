@@ -48,10 +48,12 @@ export class PhysicsCombatSystem {
         body.moveInput.set(0, 0);
         body.knockedDown = false;
         body.movementPaused = false;
+        body.customYaw = null;
       }
       if (rig) {
         rig.root.position.set(x, 0, 0);
-        rig.modelRoot.rotation.y = facingSign * (Math.PI / 2);
+        rig.root.rotation.set(0, 0, 0);
+        rig.modelRoot.rotation.set(0, facingSign * (Math.PI / 2), 0);
       }
     };
 

@@ -49,6 +49,7 @@ export interface GameHUDElements {
 export interface RoundEndResult {
   roundNumber: number;
   winner: PlayerSlot | 'draw';
+  defeated?: PlayerSlot;
   reason: 'ko' | 'time_over';
   wins: Record<PlayerSlot, number>;
 }
@@ -102,7 +103,7 @@ const DEFAULT_ROUND_DURATION = 99;
 const DEFAULT_ROUNDS_TO_WIN = 2;
 const DEFAULT_SIGNATURE_GAIN_ON_DAMAGE = 10;
 const DEFAULT_INTRO_DURATION_SEC = 3.2;
-const DEFAULT_KO_RESET_DELAY_MS = 4000;
+const DEFAULT_KO_RESET_DELAY_MS = 4600;
 const DEFAULT_SLOW_MO_DURATION_MS = 1400;
 const DEFAULT_SLOW_MO_FPS = 15;
 const DEFAULT_NORMAL_FPS = 240;
@@ -575,7 +576,7 @@ export class GameManager {
     this.playDefeatedFallAnimation(this.players[defeatedPlayer]);
 
     const winner: PlayerSlot = defeatedPlayer === 'player1' ? 'player2' : 'player1';
-    this.recordRoundVictory(winner, 'ko');
+    this.recordRoundVictory(winner, 'ko', defeatedPlayer);
   }
 
   private handleTimeOver(): void {
@@ -604,7 +605,11 @@ export class GameManager {
     this.recordRoundVictory(winner, 'time_over');
   }
 
-  private recordRoundVictory(winner: PlayerSlot | 'draw', reason: 'ko' | 'time_over'): void {
+  private recordRoundVictory(
+    winner: PlayerSlot | 'draw',
+    reason: 'ko' | 'time_over',
+    defeated?: PlayerSlot
+  ): void {
     if (winner !== 'draw') {
       this.players[winner].roundWins += 1;
       this.updateRoundIndicatorsUI(winner, true);
@@ -618,6 +623,7 @@ export class GameManager {
     this.callbacks.onRoundEnd?.({
       roundNumber: this.roundNumber,
       winner,
+      defeated,
       reason,
       wins,
     });

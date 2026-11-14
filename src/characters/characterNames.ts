@@ -29,11 +29,11 @@ export const SELECT_ROSTER_ORDER: readonly SelectRosterSlotId[] = [
  */
 export const CHARACTER_NAMES: Record<CharacterId, string> = {
   chinu: 'Chinu',
-  priyanshu: 'Priyanshu',
-  modiji: 'Modiji',
-  trump: 'Pope Grump',
-  putin: 'царь Путин',
-  amitabh: 'Amitabh Bachchan',
+  priyanshu: 'Developer',
+  modiji: 'Mo Modi',
+  trump: 'Pope Dolund',
+  putin: 'Tsar Putin',
+  amitabh: 'Big B',
 };
 
 export function isCharacterId(value: string): value is CharacterId {

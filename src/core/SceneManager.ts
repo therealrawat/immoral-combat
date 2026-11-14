@@ -24,6 +24,8 @@ export class SceneManager {
   private onResizeCallback?: (width: number, height: number) => void;
   private orientationRafId?: number;
   private resizeObserver?: ResizeObserver;
+  private koCinematicTimeline?: gsap.core.Timeline;
+  private greetingTimeline?: gsap.core.Timeline;
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -286,6 +288,205 @@ export class SceneManager {
     );
   }
 
+  /**
+   * Cinematic Two-Shot pre-fight greeting framing centered on both fighters as they bow/greet.
+   */
+  public triggerGreetingCinematic(
+    leftPos: THREE.Vector3,
+    rightPos: THREE.Vector3,
+    holdSeconds = 1.95
+  ): gsap.core.Timeline {
+    this.greetingTimeline?.kill();
+    gsap.killTweensOf(this.zoomTargetPos);
+    gsap.killTweensOf(this.currentLookAt);
+
+    const midX = (leftPos.x + rightPos.x) * 0.5;
+    const greetCamPos = new THREE.Vector3(midX, 2.35, 6.2);
+    const greetLookAt = new THREE.Vector3(midX, 1.05, 0);
+
+    const tl = gsap.timeline();
+    tl.to(this.zoomTargetPos, {
+      x: greetCamPos.x,
+      y: greetCamPos.y,
+      z: greetCamPos.z,
+      duration: 0.35,
+      ease: 'power2.out',
+    });
+    tl.to(
+      this.currentLookAt,
+      {
+        x: greetLookAt.x,
+        y: greetLookAt.y,
+        z: greetLookAt.z,
+        duration: 0.35,
+        ease: 'power2.out',
+      },
+      '<'
+    );
+
+    // Smooth return to base arena fight angle right as FIGHT! hits
+    tl.to(this.zoomTargetPos, {
+      x: this.baseCameraPos.x,
+      y: this.baseCameraPos.y,
+      z: this.baseCameraPos.z,
+      delay: holdSeconds,
+      duration: 0.65,
+      ease: 'power2.inOut',
+    });
+    tl.to(
+      this.currentLookAt,
+      {
+        x: this.baseLookAt.x,
+        y: this.baseLookAt.y,
+        z: this.baseLookAt.z,
+        duration: 0.65,
+        ease: 'power2.inOut',
+      },
+      '<'
+    );
+
+    this.greetingTimeline = tl;
+    return tl;
+  }
+
+  /**
+   * KO Dramatic Cinematic Sequence:
+   * 1. Fast dramatic zoom directly onto the defeated player as they hit the canvas in slow-motion.
+   * 2. Smooth panoramic sweep & low-angle heroic close-up on the victorious fighter celebrating.
+   * 3. Seamless transition back to base framing for round reset / rematch.
+   */
+  public triggerKOCinematicSequence(
+    defeatedPos: THREE.Vector3,
+    winnerPos: THREE.Vector3,
+    onComplete?: () => void
+  ): gsap.core.Timeline {
+    this.koCinematicTimeline?.kill();
+    this.greetingTimeline?.kill();
+    gsap.killTweensOf(this.zoomTargetPos);
+    gsap.killTweensOf(this.currentLookAt);
+
+    // 1. Defeated fighter framing: Close-in, angled downwards toward mat
+    const defOffset = defeatedPos.x < 0 ? 0.35 : -0.35;
+    const defCamPos = new THREE.Vector3(
+      defeatedPos.x + defOffset,
+      1.25,
+      Math.max(defeatedPos.z + 2.65, 1.85)
+    );
+    const defLookAt = new THREE.Vector3(defeatedPos.x, 0.42, defeatedPos.z);
+
+    // 2. Winner fighter framing: Low-angle heroic close-up looking up at champion
+    const winOffset = winnerPos.x < 0 ? -0.35 : 0.35;
+    const winCamPos = new THREE.Vector3(
+      winnerPos.x + winOffset,
+      1.15,
+      Math.max(winnerPos.z + 2.55, 1.85)
+    );
+    const winLookAt = new THREE.Vector3(winnerPos.x, 1.42, winnerPos.z);
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        onComplete?.();
+      },
+    });
+
+    // Step 1: Punchy zoom into defeated player as they hit the mat
+    tl.to(this.zoomTargetPos, {
+      x: defCamPos.x,
+      y: defCamPos.y,
+      z: defCamPos.z,
+      duration: 0.28,
+      ease: 'power3.out',
+    });
+    tl.to(
+      this.currentLookAt,
+      {
+        x: defLookAt.x,
+        y: defLookAt.y,
+        z: defLookAt.z,
+        duration: 0.28,
+        ease: 'power3.out',
+      },
+      '<'
+    );
+
+    // Step 2: Hold on defeated player (slow-mo fall), then sweep across to winner
+    tl.to(this.zoomTargetPos, {
+      x: winCamPos.x,
+      y: winCamPos.y,
+      z: winCamPos.z,
+      delay: 1.5,
+      duration: 0.75,
+      ease: 'power2.inOut',
+    });
+    tl.to(
+      this.currentLookAt,
+      {
+        x: winLookAt.x,
+        y: winLookAt.y,
+        z: winLookAt.z,
+        duration: 0.75,
+        ease: 'power2.inOut',
+      },
+      '<'
+    );
+
+    // Step 3: Hold on celebrating winner, then glide smoothly back to arena base
+    tl.to(this.zoomTargetPos, {
+      x: this.baseCameraPos.x,
+      y: this.baseCameraPos.y,
+      z: this.baseCameraPos.z,
+      delay: 1.6,
+      duration: 0.65,
+      ease: 'power2.inOut',
+    });
+    tl.to(
+      this.currentLookAt,
+      {
+        x: this.baseLookAt.x,
+        y: this.baseLookAt.y,
+        z: this.baseLookAt.z,
+        duration: 0.65,
+        ease: 'power2.inOut',
+      },
+      '<'
+    );
+
+    this.koCinematicTimeline = tl;
+    return tl;
+  }
+
+  /**
+   * Resets camera to standard fighting viewpoint, cancelling any active cinematic tweens.
+   */
+  public resetCamera(instant = false): void {
+    this.koCinematicTimeline?.kill();
+    this.koCinematicTimeline = undefined;
+    this.greetingTimeline?.kill();
+    this.greetingTimeline = undefined;
+    gsap.killTweensOf(this.zoomTargetPos);
+    gsap.killTweensOf(this.currentLookAt);
+
+    if (instant) {
+      this.zoomTargetPos.copy(this.baseCameraPos);
+      this.currentLookAt.copy(this.baseLookAt);
+    } else {
+      gsap.to(this.zoomTargetPos, {
+        x: this.baseCameraPos.x,
+        y: this.baseCameraPos.y,
+        z: this.baseCameraPos.z,
+        duration: 0.45,
+        ease: 'power2.out',
+      });
+      gsap.to(this.currentLookAt, {
+        x: this.baseLookAt.x,
+        y: this.baseLookAt.y,
+        z: this.baseLookAt.z,
+        duration: 0.45,
+        ease: 'power2.out',
+      });
+    }
+  }
+
   public render(): void {
     this.smoothParallax.lerp(this.targetParallax, 0.08);
     this.camera.position
@@ -371,6 +572,7 @@ export class SceneManager {
   };
 
   public dispose(): void {
+    this.resetCamera(true);
     window.removeEventListener('resize', this.handleResize);
     window.removeEventListener('orientationchange', this.handleOrientationResize);
     window.visualViewport?.removeEventListener('resize', this.handleResize);
